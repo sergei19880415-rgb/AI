@@ -1,0 +1,127 @@
+@import "tailwindcss";
+@plugin "tailwind-scrollbar";
+
+@theme {
+    --breakpoint-*: initial;
+    --breakpoint-sm: 480px;
+    --breakpoint-md: 767px;
+    --breakpoint-lg: 1023px;
+    --breakpoint-xl: 1259px;
+    --breakpoint-2xl: 1419px;
+    --breakpoint-3xl: 1719px;
+    --breakpoint-4xl: 1899px;
+    --color-primary-0: #f7f1ff;
+    --color-primary-25: #c4a1f9;
+    --color-primary-50: #b182f8;
+    --color-primary-100: #9d63f6;
+    --color-primary-200: #8a44f4;
+    --color-primary-300: #45227a;
+    --color-secondary-0: #fff0fd;
+    --color-secondary-25: #f7adfe;
+    --color-secondary-50: #f05afd;
+    --color-secondary-100: #ec31fc;
+    --color-secondary-200: #e808fc;
+    --color-secondary-300: #c107d2;
+    --color-gray-0: #ffffff;
+    --color-gray-25: #f6f8fa;
+    --color-gray-50: #eceff3;
+    --color-gray-100: #dfe1e7;
+    --color-gray-200: #c1c7d0;
+    --color-gray-300: #a4acb9;
+    --color-gray-400: #818898;
+    --color-gray-500: #666d80;
+    --color-gray-600: #36394a;
+    --color-gray-700: #1b1b1b;
+    --color-gray-800: #1a1b25;
+    --color-gray-900: #0d0d12;
+    --color-success-0: #ecffee;
+    --color-success-25: #bdebc2;
+    --color-success-50: #7cd785;
+    --color-success-100: #3ac348;
+    --color-success-200: #278231;
+    --color-success-300: #134118;
+    --color-warning-0: #fff6e0;
+    --color-warning-25: #faedcc;
+    --color-warning-50: #fcda83;
+    --color-warning-100: #ffbe4c;
+    --color-warning-200: #966422;
+    --color-warning-300: #5c3d1f;
+    --color-error-0: #fff0f3;
+    --color-error-25: #fadbe1;
+    --color-error-50: #ed8296;
+    --color-error-100: #d73e3d;
+    --color-error-200: #8f2929;
+    --color-error-300: #6c1f1f;
+    --default-transition-duration: 0.2s;
+    --font-geist-sans: var(--font-geist-sans);
+    --text-0: 0;
+    --text-h1: 3rem;
+    --text-h1--line-height: 1.2;
+    --text-h1--letter-spacing: -0.03em;
+    --text-h1--font-weight: 600;
+    --text-h2: 2.5rem;
+    --text-h2--line-height: 1.2;
+    --text-h2--letter-spacing: -0.03em;
+    --text-h2--font-weight: 600;
+    --text-h3: 2rem;
+    --text-h3--line-height: 1.2;
+    --text-h3--letter-spacing: -0.03em;
+    --text-h3--font-weight: 600;
+    --text-h4: 1.5rem;
+    --text-h4--line-height: 1.2;
+    --text-h4--letter-spacing: -0.03em;
+    --text-h4--font-weight: 600;
+    --text-h5: 1.25rem;
+    --text-h5--line-height: 1.2;
+    --text-h5--letter-spacing: -0.03em;
+    --text-h5--font-weight: 600;
+    --text-h6: 1.125rem;
+    --text-h6--line-height: 1.2;
+    --text-h6--letter-spacing: -0.03em;
+    --text-h6--font-weight: 600;
+    --text-body-lg: 1.125rem;
+    --text-body-lg--line-height: 1.55;
+    --text-body-lg--letter-spacing: -0.01em;
+    --text-body-md: 1rem;
+    --text-body-md--line-height: 1.5;
+    --text-body-md--letter-spacing: -0.01em;
+    --text-body-sm: 0.875rem;
+    --text-body-sm--line-height: 1.2;
+    --text-body-sm--letter-spacing: -0.01em;
+    --text-body-xs: 0.75rem;
+    --text-body-xs--line-height: 1.5;
+    --text-body-xs--letter-spacing: -0.01em;
+}
+
+@layer base {
+    button {
+        @apply cursor-pointer;
+    }
+}
+
+@layer components {
+    .wrapper {
+        @apply px-20 pt-6 pb-53 max-2xl:px-6 max-md:px-4 max-md:pb-46;
+    }
+    .date {
+        @apply flex items-center gap-3 text-gray-300 before:flex-grow before:h-0.25 before:bg-gray-300 after:flex-grow after:h-0.25 after:bg-gray-300;
+    }
+    .content h5 {
+        @apply mb-4 text-body-lg font-semibold;
+    }
+    .content ol {
+        @apply list-decimal list-inside;
+    }
+    .content ul {
+        @apply pl-6 list-disc;
+    }
+    .swiper-voice .swiper-slide {
+        @apply text-gray-200 transition-colors;
+    }
+    .swiper-voice .swiper-slide {
+        @apply text-gray-200/50 transition-colors;
+    }
+    .swiper-voice .swiper-slide.swiper-slide-active {
+        @apply text-gray-0;
+    }
+}
