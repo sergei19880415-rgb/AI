@@ -23,7 +23,7 @@ const HomePage = () => {
                     />
                 </div>
                 <div className="text-center text-h2">
-                    How can i help you today ?
+                    Выбери модели и задай вопрос
                 </div>
                 {!isNewChat && (
                     <div className="flex gap-4 max-w-258 mx-auto mt-8 max-lg:flex-col max-lg:max-w-100 max-lg:mx-auto">

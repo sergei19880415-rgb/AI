@@ -6,10 +6,11 @@ import GenerateVideo from "./GenerateVideo";
 type Props = {
     image?: string;
     video?: string;
+    modelLabel?: string;
     children: React.ReactNode;
 };
 
-const Answer = ({ image, video, children }: Props) => {
+const Answer = ({ image, video, modelLabel, children }: Props) => {
     const actions = [
         {
             icon: "copy",
@@ -43,8 +44,18 @@ const Answer = ({ image, video, children }: Props) => {
         },
     ];
 
+    const contentText =
+        typeof children === "string"
+            ? children
+            : Array.isArray(children)
+            ? children.join(" ")
+            : "";
+
+    const showModelLabel =
+        !!modelLabel && !contentText.startsWith("Печатает...");
+
     return (
-        <div className="">
+        <div>
             <div className="flex items-start gap-2">
                 <div className="relative flex shrink-0 after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:w-3.5 after:h-0.5 after:bg-[#8A44F4]/40 after:rounded-[100%] after:blur-[0.125rem]">
                     <Image
@@ -55,15 +66,24 @@ const Answer = ({ image, video, children }: Props) => {
                         alt=""
                     />
                 </div>
-                <div className="">
+
+                <div>
                     {children && (
                         <div className="content p-3 rounded-3xl rounded-tl-none bg-gray-50 max-md:rounded-2xl max-md:rounded-tl-none">
                             {children}
                         </div>
                     )}
+
                     {image && <GenerateImage image={image} />}
                     {video && <GenerateVideo video={video} />}
-                    <div className="flex gap-2 mt-2">
+
+                    {showModelLabel && (
+                        <div className="mt-1 pr-1 text-right text-[12px] italic leading-4 text-gray-400">
+                            {modelLabel}
+                        </div>
+                    )}
+
+                    <div className="mt-2 flex gap-2">
                         {actions.map((action) => (
                             <button
                                 className={`group text-0 ${

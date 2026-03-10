@@ -1,8 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
 import Button from "@/components/Button";
-import useEventsStore from "@/store/useEventsStore";
 import Menu from "./Menu";
 import Space from "./Space";
 import RecentChats from "./RecentChats";
@@ -16,8 +18,68 @@ type Props = {
     onToggle: () => void;
 };
 
+type ChatMessage = {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+};
+
+type ChatSession = {
+    id: string;
+    title: string;
+    messages: ChatMessage[];
+    updatedAt: number;
+};
+
+const getUserEmail = () => {
+    return (localStorage.getItem("ai_user_email") || "guest").trim();
+};
+
+const getSessionsKey = () => {
+    return `ai_sessions_${getUserEmail()}`;
+};
+
+const getCurrentSessionKey = () => {
+    return `ai_current_session_${getUserEmail()}`;
+};
+
+const readSessions = (): ChatSession[] => {
+    try {
+        const raw = localStorage.getItem(getSessionsKey());
+        if (!raw) return [];
+
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+};
+
+const saveSessions = (sessions: ChatSession[]) => {
+    localStorage.setItem(getSessionsKey(), JSON.stringify(sessions));
+    window.dispatchEvent(new Event("ai-chat-sessions-updated"));
+    window.dispatchEvent(new Event("ai-chat-updated"));
+};
+
 const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
-    const { newChat } = useEventsStore();
+    const router = useRouter();
+
+    const handleNewChat = () => {
+        const sessions = readSessions();
+        const newSession: ChatSession = {
+            id: crypto.randomUUID(),
+            title: "Новый чат",
+            messages: [],
+            updatedAt: Date.now(),
+        };
+
+        const nextSessions = [newSession, ...sessions];
+        saveSessions(nextSessions);
+        localStorage.setItem(getCurrentSessionKey(), newSession.id);
+
+        router.push(`/chat?id=${newSession.id}`);
+        onClose();
+    };
 
     return (
         <div
@@ -42,8 +104,9 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                         height={24}
                         alt="Logo"
                     />
-                    {!isCollapsed && <span className="font-medium">Zyra</span>}
+                    {!isCollapsed && <span className="font-medium">MAX AI</span>}
                 </Link>
+
                 <button
                     className="group flex max-2xl:hidden"
                     onClick={onToggle}
@@ -53,6 +116,7 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                         name="toggle"
                     />
                 </button>
+
                 <button className="hidden max-2xl:flex" onClick={onClose}>
                     <Icon
                         className="!size-6 fill-gray-500 transition-colors group-hover:fill-gray-900"
@@ -60,6 +124,7 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                     />
                 </button>
             </div>
+
             <div className="grow overflow-y-auto scrollbar-none">
                 <div
                     className={`py-3 border-b border-gray-100 ${
@@ -68,22 +133,19 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                 >
                     <Button
                         className={`w-full !gap-0 ${
-                            isCollapsed ? " !px-0" : ""
+                            isCollapsed ? "!px-0" : ""
                         }`}
                         icon="plus"
                         isPrimary
                         isXSmall
-                        onClick={() => {
-                            newChat();
-                            onClose();
-                        }}
-                        as="link"
-                        href="/"
+                        onClick={handleNewChat}
                     >
                         {!isCollapsed && <span className="ml-2">New Chat</span>}
                     </Button>
                 </div>
+
                 <Menu isCollapsed={isCollapsed} />
+
                 {!isCollapsed && (
                     <>
                         <Space />
@@ -91,6 +153,7 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                     </>
                 )}
             </div>
+
             <Upgrade isCollapsed={isCollapsed} />
             <User isCollapsed={isCollapsed} />
         </div>

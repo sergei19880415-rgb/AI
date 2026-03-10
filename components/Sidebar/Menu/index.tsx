@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import Modal from "@/components/Modal";
 import NavLink from "./NavLink";
 import Button from "./Button";
@@ -12,6 +14,24 @@ type Props = {
 const Menu = ({ isCollapsed }: Props) => {
     const [openModalSpace, setOpenModalSpace] = useState(false);
     const [openModalArchivedChat, setOpenModalArchivedChat] = useState(false);
+
+    useEffect(() => {
+        const handleOpenProjectModal = () => {
+            setOpenModalSpace(true);
+        };
+
+        window.addEventListener(
+            "ai-open-project-create-modal",
+            handleOpenProjectModal
+        );
+
+        return () => {
+            window.removeEventListener(
+                "ai-open-project-create-modal",
+                handleOpenProjectModal
+            );
+        };
+    }, []);
 
     const items = [
         {
@@ -56,9 +76,10 @@ const Menu = ({ isCollapsed }: Props) => {
                 {!isCollapsed && (
                     <div className="mb-2 pl-2 text-body-xs">MAIN MENU</div>
                 )}
-                <div className="">
-                    {items.map((item, index) => {
-                        return item.href ? (
+
+                <div>
+                    {items.map((item, index) =>
+                        item.href ? (
                             <NavLink
                                 isCollapsed={isCollapsed}
                                 item={item}
@@ -70,18 +91,20 @@ const Menu = ({ isCollapsed }: Props) => {
                                 item={item}
                                 key={index}
                             />
-                        );
-                    })}
+                        )
+                    )}
                 </div>
             </div>
+
             <Modal
-                classWrapper="relative max-w-100 px-5 py-4 bg-gray-0 rounded-xl border border-gray-50"
+                classWrapper="relative w-full max-w-[640px] px-6 py-5 bg-gray-0 rounded-xl border border-gray-50"
                 classButtonClose="!top-4.5 !right-4 size-auto [&_svg]:!size-5 max-md:!size-auto"
                 open={openModalSpace}
                 onClose={() => setOpenModalSpace(false)}
             >
-                <Space />
+                <Space onClose={() => setOpenModalSpace(false)} />
             </Modal>
+
             <Modal
                 classWrapper="relative max-w-100 px-5 py-4 bg-gray-0 rounded-xl border border-gray-50"
                 classButtonClose="!top-4.5 !right-4 size-auto [&_svg]:!size-5 max-md:!size-auto"

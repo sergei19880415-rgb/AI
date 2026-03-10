@@ -1,5 +1,8 @@
-import { useState } from "react";
+"use client";
+
+import { useEffect, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Head from "@/components/Login/Head";
 import Button from "@/components/Button";
 import Image from "@/components/Image";
@@ -10,18 +13,171 @@ type Props = {
     onContinueWithEmail: () => void;
 };
 
+type ModelCatalogItem = {
+    model_id: string;
+    display_name?: string;
+    provider?: string;
+    group_order?: number;
+    model_order?: number;
+    input_price_per_1m?: number | null;
+    output_price_per_1m?: number | null;
+    is_active?: boolean;
+};
+
+const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
+
+const getSelectedModelKey = (userEmail: string) => {
+    return `ai_selected_model_${userEmail.trim()}`;
+};
+
 const Start = ({ onContinueWithEmail }: Props) => {
+    const router = useRouter();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(false);
+    const [errorText, setErrorText] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        const savedRememberEmail = localStorage.getItem("ai_remember_email");
+        if (savedRememberEmail) {
+            setEmail(savedRememberEmail);
+            setRemember(true);
+        }
+    }, []);
+
+    const handleLogin = async () => {
+        const cleanEmail = email.trim();
+        const cleanPassword = password.trim();
+
+        if (!cleanEmail || !cleanPassword || isLoading) return;
+
+        setIsLoading(true);
+        setErrorText("");
+
+        try {
+            const response = await fetch(LOGIN_WEBHOOK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: cleanEmail,
+                    password: cleanPassword,
+                }),
+            });
+
+            const raw = await response.text();
+
+            let data: any = null;
+
+            try {
+                data = JSON.parse(raw);
+            } catch {
+                setErrorText("Сервер вернул непонятный ответ");
+                setIsLoading(false);
+                return;
+            }
+
+            if (data?.success) {
+                localStorage.setItem("ai_user_email", cleanEmail);
+
+                localStorage.setItem(
+                    "ai_user_first_name",
+                    (data.firstName || "").trim()
+                );
+
+                localStorage.setItem(
+                    "ai_user_name",
+                    `${data.firstName || ""} ${data.lastName || ""}`.trim()
+                );
+
+                localStorage.setItem(
+                    "ai_plan_type",
+                    data.planType || "Базовый"
+                );
+
+                localStorage.setItem(
+                    "ai_allowed_models",
+                    data.allowedModels || ""
+                );
+
+                const modelsCatalog: ModelCatalogItem[] = Array.isArray(
+                    data.modelsCatalog
+                )
+                    ? data.modelsCatalog
+                    : [];
+
+                localStorage.setItem(
+                    "ai_models_catalog",
+                    JSON.stringify(modelsCatalog)
+                );
+
+                const currentSelectedModelKey = getSelectedModelKey(cleanEmail);
+                const savedSelectedModel =
+                    localStorage.getItem(currentSelectedModelKey) || "";
+
+                const allowedModelIds = modelsCatalog
+                    .map((item) => String(item?.model_id || "").trim())
+                    .filter(Boolean);
+
+                const defaultModelId =
+                    savedSelectedModel &&
+                    allowedModelIds.includes(savedSelectedModel)
+                        ? savedSelectedModel
+                        : allowedModelIds[0] ||
+                          (data.allowedModels || "")
+                              .split(",")
+                              .map((item: string) => item.trim())
+                              .filter(Boolean)[0] ||
+                          "";
+
+                if (defaultModelId) {
+                    localStorage.setItem(
+                        currentSelectedModelKey,
+                        defaultModelId
+                    );
+                } else {
+                    localStorage.removeItem(currentSelectedModelKey);
+                }
+
+                window.dispatchEvent(new Event("ai-models-catalog-updated"));
+                window.dispatchEvent(new Event("ai-selected-model-updated"));
+
+                if (remember) {
+                    localStorage.setItem("ai_remember_email", cleanEmail);
+                } else {
+                    localStorage.removeItem("ai_remember_email");
+                }
+
+                router.push("/chat");
+                return;
+            }
+
+            setErrorText(data?.message || "Неверный логин или пароль");
+        } catch {
+            setErrorText("Ошибка сети или CORS");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            handleLogin();
+        }
+    };
 
     return (
         <>
             <Head
-                title="Ready to chat with Zyra AI?"
-                description="Login to access your past chats or start a fresh conversation."
+                title="Вход в AI-агрегатор"
+                description="Войди, чтобы открыть чат и свои доступные модели."
             />
-            <Button className="w-full mb-3" isSecondary>
+
+            <Button className="w-full mb-3" isSecondary type="button">
                 <Image
                     className="w-5 opacity-100"
                     src="/images/google.svg"
@@ -31,7 +187,8 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 />
                 Continue with Google
             </Button>
-            <Button className="w-full" isSecondary>
+
+            <Button className="w-full" isSecondary type="button">
                 <Image
                     className="w-5 opacity-100"
                     src="/images/apple.svg"
@@ -41,9 +198,11 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 />
                 Continue with Apple
             </Button>
+
             <div className="flex items-center gap-6 my-4 text-body-sm text-gray-400 before:grow before:h-0.25 before:bg-gray-50 after:grow after:h-0.25 after:bg-gray-50">
                 Or continue with
             </div>
+
             <Field
                 className="mb-3"
                 label="Email"
@@ -51,8 +210,10 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
                 required
             />
+
             <Field
                 className="mb-2"
                 label="Password"
@@ -60,8 +221,14 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={handleKeyDown}
                 required
             />
+
+            {errorText && (
+                <div className="mb-3 text-sm text-red-600">{errorText}</div>
+            )}
+
             <div className="flex justify-between items-center h-10 mb-4">
                 <Checkbox
                     label="Remember me"
@@ -75,13 +242,17 @@ const Start = ({ onContinueWithEmail }: Props) => {
                     Forgot password?
                 </Link>
             </div>
+
             <Button
                 className="w-full mb-2"
                 isPrimary
-                onClick={onContinueWithEmail}
+                type="button"
+                onClick={handleLogin}
+                disabled={isLoading || !email.trim() || !password.trim()}
             >
-                Continue With Email
+                {isLoading ? "Проверка..." : "Continue With Email"}
             </Button>
+
             <div className="flex justify-center items-center gap-2 h-14 text-body-sm">
                 <div className="text-gray-600">Don’t have an account?</div>
                 <Link

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -35,22 +37,25 @@ const Layout = ({
                 visible={sidebarVisible}
                 onClose={() => setSidebarVisible(false)}
             />
-            <div className="relative flex flex-col h-[calc(100svh-1rem)] bg-gray-0 rounded-2xl border border-gray-100 max-md:min-h-[calc(100svh-4rem)] max-md:h-auto max-md:bg-transparent max-md:border-none max-md:rounded-none">
+
+            <div className="relative flex h-[calc(100svh-1rem)] min-h-0 flex-col rounded-2xl border border-gray-100 bg-gray-0 max-md:h-[calc(100svh-4rem)] max-md:rounded-none max-md:border-none max-md:bg-transparent">
                 <Header
                     title={title}
                     onOpenSidebar={() => setSidebarVisible(true)}
                 />
+
                 <div
-                    className={`grow scrollbar-none ${
+                    className={`min-h-0 grow overflow-auto scrollbar-none ${
                         archived
-                            ? "overflow-hidden max-md:h-[calc(100svh-4rem)]"
-                            : "overflow-auto"
+                            ? "overflow-hidden"
+                            : ""
                     } ${classWrapper || ""}`}
                 >
                     {children}
                 </div>
+
                 {archived ? (
-                    <div className="absolute bottom-0 left-0 right-0 pt-44 px-5 pb-12 rounded-b-2xl bg-linear-to-b from-gray-0/0 via-gray-0 to-gray-0 text-center max-md:fixed">
+                    <div className="rounded-b-2xl bg-linear-to-b from-gray-0/0 via-gray-0 to-gray-0 px-5 pb-12 pt-10 text-center">
                         <div className="mb-5">
                             This chat has been archived. Please unarchive it to
                             continue.
@@ -64,6 +69,7 @@ const Layout = ({
                     !hidePanelMessage && <PanelMessage />
                 )}
             </div>
+
             <div
                 className={`hidden fixed inset-0 z-20 bg-[#1B1B1B]/90 backdrop-blur-sm duration-300 transition-all max-2xl:block ${
                     sidebarVisible
@@ -71,7 +77,7 @@ const Layout = ({
                         : "invisible opacity-0"
                 }`}
                 onClick={() => setSidebarVisible(false)}
-            ></div>
+            />
         </div>
     );
 };
