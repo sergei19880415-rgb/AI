@@ -1,5 +1,14 @@
 {
-  "/page": "app/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/archived-chat/page": "app/archived-chat/page.js",
+  "/auth/forgot-password/page": "app/auth/forgot-password/page.js",
+  "/auth/sign-up/page": "app/auth/sign-up/page.js",
+  "/auth/sign-in/page": "app/auth/sign-in/page.js",
   "/chat/page": "app/chat/page.js",
-  "/auth/sign-in/page": "app/auth/sign-in/page.js"
+  "/gallery-library/page": "app/gallery-library/page.js",
+  "/page": "app/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/space/new-chat/page": "app/space/new-chat/page.js",
+  "/space/page": "app/space/page.js"
 }

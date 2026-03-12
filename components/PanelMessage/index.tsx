@@ -70,8 +70,8 @@ const readSessions = (): ChatSession[] => {
         const raw = localStorage.getItem(getSessionsKey());
         if (!raw) return [];
 
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        const parsed: unknown = JSON.parse(raw);
+        return Array.isArray(parsed) ? (parsed as ChatSession[]) : [];
     } catch {
         return [];
     }
@@ -94,8 +94,8 @@ const getModelsCatalog = (): ModelCatalogItem[] => {
         const raw = localStorage.getItem("ai_models_catalog");
         if (!raw) return [];
 
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        const parsed: unknown = JSON.parse(raw);
+        return Array.isArray(parsed) ? (parsed as ModelCatalogItem[]) : [];
     } catch {
         return [];
     }
@@ -143,6 +143,49 @@ const getCurrentModelInfo = (): { modelId: string; displayName: string } => {
     };
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const readTextField = (value: unknown, field: string): string | null => {
+    if (!isRecord(value)) return null;
+
+    const fieldValue = value[field];
+
+    if (
+        typeof fieldValue === "string" ||
+        typeof fieldValue === "number" ||
+        typeof fieldValue === "boolean"
+    ) {
+        return String(fieldValue);
+    }
+
+    return null;
+};
+
+const extractAnswerText = (value: unknown): string | null => {
+    const directAnswer = readTextField(value, "answer");
+    if (directAnswer) return directAnswer;
+
+    const directText = readTextField(value, "text");
+    if (directText) return directText;
+
+    const directMessage = readTextField(value, "message");
+    if (directMessage) return directMessage;
+
+    if (isRecord(value)) {
+        const nestedJson = value.json;
+
+        const nestedAnswer = readTextField(nestedJson, "answer");
+        if (nestedAnswer) return nestedAnswer;
+
+        const nestedText = readTextField(nestedJson, "text");
+        if (nestedText) return nestedText;
+    }
+
+    return null;
+};
+
 const PanelMessage = () => {
     const searchParams = useSearchParams();
     const sessionIdFromUrl = searchParams.get("id") || "";
@@ -154,7 +197,7 @@ const PanelMessage = () => {
     const [generateVideo, setGenerateVideo] = useState(false);
     const [isSending, setIsSending] = useState(false);
 
-    const parseResponseText = (raw: string, status: number) => {
+    const parseResponseText = (raw: string, status: number): string => {
         const trimmed = raw.trim();
 
         if (!trimmed) {
@@ -162,13 +205,13 @@ const PanelMessage = () => {
         }
 
         try {
-            let data: any = JSON.parse(trimmed);
+            let data: unknown = JSON.parse(trimmed);
 
             if (typeof data === "string") {
                 try {
-                    data = JSON.parse(data);
+                    data = JSON.parse(data) as unknown;
                 } catch {
-                    return data;
+                    return typeof data === "string" ? data : String(data);
                 }
             }
 
@@ -176,20 +219,16 @@ const PanelMessage = () => {
                 const first = data[0];
 
                 if (typeof first === "string") return first;
-                if (first?.answer) return String(first.answer);
-                if (first?.text) return String(first.text);
-                if (first?.json?.answer) return String(first.json.answer);
-                if (first?.json?.text) return String(first.json.text);
+
+                const extracted = extractAnswerText(first);
+                if (extracted) return extracted;
 
                 return JSON.stringify(first, null, 2);
             }
 
-            if (typeof data === "object" && data !== null) {
-                if (data.answer) return String(data.answer);
-                if (data.text) return String(data.text);
-                if (data.message) return String(data.message);
-                if (data.json?.answer) return String(data.json.answer);
-                if (data.json?.text) return String(data.json.text);
+            if (isRecord(data)) {
+                const extracted = extractAnswerText(data);
+                if (extracted) return extracted;
 
                 return JSON.stringify(data, null, 2);
             }

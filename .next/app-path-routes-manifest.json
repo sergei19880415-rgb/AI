@@ -1,0 +1,14 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/favicon.ico/route": "/favicon.ico",
+  "/archived-chat/page": "/archived-chat",
+  "/auth/forgot-password/page": "/auth/forgot-password",
+  "/auth/sign-up/page": "/auth/sign-up",
+  "/auth/sign-in/page": "/auth/sign-in",
+  "/chat/page": "/chat",
+  "/gallery-library/page": "/gallery-library",
+  "/page": "/",
+  "/settings/page": "/settings",
+  "/space/new-chat/page": "/space/new-chat",
+  "/space/page": "/space"
+}

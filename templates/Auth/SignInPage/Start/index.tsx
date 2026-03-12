@@ -24,10 +24,48 @@ type ModelCatalogItem = {
     is_active?: boolean;
 };
 
+type LoginResponse = {
+    success?: boolean;
+    firstName?: string;
+    lastName?: string;
+    planType?: string;
+    allowedModels?: string;
+    modelsCatalog?: ModelCatalogItem[];
+    message?: string;
+};
+
 const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
 
 const getSelectedModelKey = (userEmail: string) => {
     return `ai_selected_model_${userEmail.trim()}`;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const toLoginResponse = (value: unknown): LoginResponse | null => {
+    if (!isRecord(value)) return null;
+
+    return {
+        success:
+            typeof value.success === "boolean" ? value.success : undefined,
+        firstName:
+            typeof value.firstName === "string" ? value.firstName : undefined,
+        lastName:
+            typeof value.lastName === "string" ? value.lastName : undefined,
+        planType:
+            typeof value.planType === "string" ? value.planType : undefined,
+        allowedModels:
+            typeof value.allowedModels === "string"
+                ? value.allowedModels
+                : undefined,
+        modelsCatalog: Array.isArray(value.modelsCatalog)
+            ? (value.modelsCatalog as ModelCatalogItem[])
+            : undefined,
+        message:
+            typeof value.message === "string" ? value.message : undefined,
+    };
 };
 
 const Start = ({ onContinueWithEmail }: Props) => {
@@ -70,17 +108,25 @@ const Start = ({ onContinueWithEmail }: Props) => {
 
             const raw = await response.text();
 
-            let data: any = null;
+            let parsed: unknown = null;
 
             try {
-                data = JSON.parse(raw);
+                parsed = JSON.parse(raw);
             } catch {
                 setErrorText("Сервер вернул непонятный ответ");
                 setIsLoading(false);
                 return;
             }
 
-            if (data?.success) {
+            const data = toLoginResponse(parsed);
+
+            if (!data) {
+                setErrorText("Сервер вернул непонятный ответ");
+                setIsLoading(false);
+                return;
+            }
+
+            if (data.success) {
                 localStorage.setItem("ai_user_email", cleanEmail);
 
                 localStorage.setItem(
@@ -155,7 +201,7 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 return;
             }
 
-            setErrorText(data?.message || "Неверный логин или пароль");
+            setErrorText(data.message || "Неверный логин или пароль");
         } catch {
             setErrorText("Ошибка сети или CORS");
         } finally {
@@ -163,7 +209,9 @@ const Start = ({ onContinueWithEmail }: Props) => {
         }
     };
 
-    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (
+    e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
+) => {
         if (e.key === "Enter") {
             e.preventDefault();
             handleLogin();
