@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Head from "@/components/Login/Head";
 import Button from "@/components/Button";
@@ -15,6 +17,23 @@ const VerifyCode = ({ title, onContinue }: Props) => {
     const [number3, setNumber3] = useState("");
     const [number4, setNumber4] = useState("");
     const [number5, setNumber5] = useState("");
+    const [emailText, setEmailText] = useState("на указанный email");
+
+    useEffect(() => {
+        try {
+            const rememberedEmail =
+                localStorage.getItem("ai_remember_email")?.trim() || "";
+            const currentEmail =
+                localStorage.getItem("ai_user_email")?.trim() || "";
+            const finalEmail = currentEmail || rememberedEmail;
+
+            if (finalEmail) {
+                setEmailText(finalEmail);
+            }
+        } catch {
+            setEmailText("на указанный email");
+        }
+    }, []);
 
     return (
         <>
@@ -22,10 +41,8 @@ const VerifyCode = ({ title, onContinue }: Props) => {
                 title={title}
                 description={
                     <>
-                        Enter the verification code we sent to
-                        <span className="block text-gray-800">
-                            cocomario@gmail.com
-                        </span>
+                        Введите код подтверждения, который мы отправили
+                        <span className="block text-gray-800">{emailText}</span>
                     </>
                 }
             />
@@ -62,15 +79,15 @@ const VerifyCode = ({ title, onContinue }: Props) => {
                 />
             </div>
             <Button className="w-full" isPrimary onClick={onContinue}>
-                Continue
+                Продолжить
             </Button>
             <div className="flex justify-between items-center mt-2 text-body-sm">
-                <div className="text-gray-600">Don’t have an account?</div>
+                <div className="text-gray-600">Не пришел код?</div>
                 <Link
                     className="font-medium text-primary-200 transition-colors hover:text-primary-300"
                     href="/auth/sign-up"
                 >
-                    Resend code
+                    Отправить код снова
                 </Link>
             </div>
         </>

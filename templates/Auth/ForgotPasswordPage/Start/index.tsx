@@ -14,13 +14,13 @@ const Start = ({ onContinueWithEmail }: Props) => {
     return (
         <>
             <Head
-                title="Reset your password"
-                description="Enter your email and we'll send you a reset link."
+                title="Восстановление пароля"
+                description="Введи email, и мы отправим ссылку или код для сброса пароля."
             />
             <Field
                 className="mb-4"
                 label="Email"
-                placeholder="Enter your email"
+                placeholder="Введите email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -31,14 +31,14 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 isPrimary
                 onClick={onContinueWithEmail}
             >
-                Reset password
+                Сбросить пароль
             </Button>
             <div className="flex justify-center items-center gap-2 h-14 text-body-sm">
                 <Link
                     className="font-medium text-primary-200 transition-colors hover:text-primary-300"
                     href="/auth/sign-in"
                 >
-                    Back to login
+                    Назад ко входу
                 </Link>
             </div>
         </>

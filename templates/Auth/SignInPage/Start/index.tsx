@@ -210,8 +210,8 @@ const Start = ({ onContinueWithEmail }: Props) => {
     };
 
     const handleKeyDown = (
-    e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
-) => {
+        e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
         if (e.key === "Enter") {
             e.preventDefault();
             handleLogin();
@@ -233,7 +233,7 @@ const Start = ({ onContinueWithEmail }: Props) => {
                     height={20}
                     alt="Google"
                 />
-                Continue with Google
+                Войти через Google
             </Button>
 
             <Button className="w-full" isSecondary type="button">
@@ -244,17 +244,17 @@ const Start = ({ onContinueWithEmail }: Props) => {
                     height={20}
                     alt="Apple"
                 />
-                Continue with Apple
+                Войти через Apple
             </Button>
 
             <div className="flex items-center gap-6 my-4 text-body-sm text-gray-400 before:grow before:h-0.25 before:bg-gray-50 after:grow after:h-0.25 after:bg-gray-50">
-                Or continue with
+                Или войти по email
             </div>
 
             <Field
                 className="mb-3"
                 label="Email"
-                placeholder="Enter your email"
+                placeholder="Введите email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -264,8 +264,8 @@ const Start = ({ onContinueWithEmail }: Props) => {
 
             <Field
                 className="mb-2"
-                label="Password"
-                placeholder="Enter your password"
+                label="Пароль"
+                placeholder="Введите пароль"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -279,7 +279,7 @@ const Start = ({ onContinueWithEmail }: Props) => {
 
             <div className="flex justify-between items-center h-10 mb-4">
                 <Checkbox
-                    label="Remember me"
+                    label="Запомнить меня"
                     checked={remember}
                     onChange={() => setRemember(!remember)}
                 />
@@ -287,7 +287,7 @@ const Start = ({ onContinueWithEmail }: Props) => {
                     className="font-medium text-primary-200 transition-colors hover:text-primary-300"
                     href="/auth/forgot-password"
                 >
-                    Forgot password?
+                    Забыли пароль?
                 </Link>
             </div>
 
@@ -298,16 +298,16 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 onClick={handleLogin}
                 disabled={isLoading || !email.trim() || !password.trim()}
             >
-                {isLoading ? "Проверка..." : "Continue With Email"}
+                {isLoading ? "Проверка..." : "Войти"}
             </Button>
 
             <div className="flex justify-center items-center gap-2 h-14 text-body-sm">
-                <div className="text-gray-600">Don’t have an account?</div>
+                <div className="text-gray-600">Нет аккаунта?</div>
                 <Link
                     className="font-medium text-primary-200 transition-colors hover:text-primary-300"
                     href="/auth/sign-up"
                 >
-                    Sign Up
+                    Регистрация
                 </Link>
             </div>
         </>

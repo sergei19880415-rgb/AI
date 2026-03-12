@@ -18,13 +18,13 @@ const Start = ({ onSignUp }: Props) => {
     return (
         <>
             <Head
-                title="Start your journey with Zyra"
-                description="Create your account and start chatting smarter with AI."
+                title="Создай аккаунт в MAX AI"
+                description="Зарегистрируйся и начни пользоваться AI-агрегатором."
             />
             <Field
                 className="mb-3"
                 label="Email"
-                placeholder="Enter your email"
+                placeholder="Введите email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -32,8 +32,8 @@ const Start = ({ onSignUp }: Props) => {
             />
             <Field
                 className="mb-3"
-                label="Password"
-                placeholder="Enter your password"
+                label="Пароль"
+                placeholder="Введите пароль"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -41,8 +41,8 @@ const Start = ({ onSignUp }: Props) => {
             />
             <Field
                 className="mb-4"
-                label="Confirm Password"
-                placeholder="Confirm your password"
+                label="Подтвердите пароль"
+                placeholder="Повторите пароль"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -50,20 +50,20 @@ const Start = ({ onSignUp }: Props) => {
             />
             <Checkbox
                 className="mb-4"
-                label="I agree to the Terms & Privacy Policy"
+                label="Я согласен с Условиями и Политикой конфиденциальности"
                 checked={agreeTerms}
                 onChange={() => setAgreeTerms(!agreeTerms)}
             />
             <Button className="w-full mb-2" isPrimary onClick={onSignUp}>
-                Sign up
+                Зарегистрироваться
             </Button>
             <div className="flex justify-center items-center gap-2 h-14 text-body-sm">
-                <div className="text-gray-600">Already have an account?</div>
+                <div className="text-gray-600">Уже есть аккаунт?</div>
                 <Link
                     className="font-medium text-primary-200 transition-colors hover:text-primary-300"
                     href="/auth/sign-in"
                 >
-                    Sign In
+                    Войти
                 </Link>
             </div>
         </>
