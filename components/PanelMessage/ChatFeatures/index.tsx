@@ -1,41 +1,61 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import Icon from "@/components/Icon";
 
+type ChatFeatureMode = "chat" | "search" | "image" | "video";
+
 type Props = {
+    activeMode: ChatFeatureMode;
+    onSelectChat: () => void;
+    onSelectSearch: () => void;
+    onSelectImage: () => void;
     onGenerateVideo: () => void;
 };
 
-const ChatFeatures = ({ onGenerateVideo }: Props) => {
-    const [activeFeature, setActiveFeature] = useState(0);
+const ChatFeatures = ({
+    activeMode,
+    onSelectChat,
+    onSelectSearch,
+    onSelectImage,
+    onGenerateVideo,
+}: Props) => {
+    const features = useMemo(
+        () => [
+            {
+                key: "chat" as ChatFeatureMode,
+                name: "Chat",
+                icon: "chat",
+                upgraded: true,
+                onClick: onSelectChat,
+            },
+            {
+                key: "image" as ChatFeatureMode,
+                name: "Generate Image",
+                icon: "generate-image",
+                upgraded: true,
+                onClick: onSelectImage,
+            },
+            {
+                key: "video" as ChatFeatureMode,
+                name: "Generate Video",
+                icon: "generate-video",
+                upgraded: false,
+                onClick: onGenerateVideo,
+            },
+        ],
+        [onSelectChat, onSelectImage, onGenerateVideo]
+    );
 
-    const features = [
-        {
-            name: "Chat",
-            icon: "chat",
-            upgraded: true,
-            onClick: () => {
-                console.log("Chat");
-            },
-        },
-        {
-            name: "Generate Image",
-            icon: "generate-image",
-            upgraded: true,
-            onClick: () => {
-                console.log("Generate Image");
-            },
-        },
-        {
-            name: "Generate Video",
-            icon: "generate-video",
-            upgraded: false,
-            onClick: () => {
-                onGenerateVideo();
-                console.log("Generate Video");
-            },
-        },
-    ];
+    const getIndexByMode = (mode: ChatFeatureMode) => {
+        const index = features.findIndex((item) => item.key === mode);
+        return index >= 0 ? index : 0;
+    };
+
+    const [activeFeature, setActiveFeature] = useState(getIndexByMode(activeMode));
+
+    useEffect(() => {
+        setActiveFeature(getIndexByMode(activeMode));
+    }, [activeMode, features]);
 
     return (
         <Menu>
@@ -50,6 +70,7 @@ const ChatFeatures = ({ onGenerateVideo }: Props) => {
                     name="chevron"
                 />
             </MenuButton>
+
             <MenuItems
                 className="flex [--anchor-gap:0.5rem] origin-top z-20 flex-col w-59.5 bg-gray-0 border border-black/8 rounded-lg rounded-bl-none outline-0 shadow-[0_0.0625rem_0.25rem_0_rgba(0,0,0,0.16)] transition duration-200 ease-out overflow-hidden data-closed:scale-95 data-closed:opacity-0"
                 anchor="bottom start"
@@ -59,7 +80,7 @@ const ChatFeatures = ({ onGenerateVideo }: Props) => {
                 {features.map((feature, index) => (
                     <MenuItem
                         className="group flex items-center gap-2 px-4 py-3 text-left cursor-pointer transition-colors hover:bg-gray-25"
-                        key={index}
+                        key={feature.key}
                         onClick={() => {
                             setActiveFeature(index);
                             feature.onClick();

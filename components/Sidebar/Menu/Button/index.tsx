@@ -8,18 +8,19 @@ type Props = {
         iconActive: string;
         href?: string;
         onClick?: () => void;
+        activePath?: string;
     };
     isCollapsed: boolean;
 };
 
 const Button = ({ item, isCollapsed }: Props) => {
     const pathname = usePathname();
-    const isActive = pathname === "/archived-chat" && item.title === "Archive";
+    const isActive = item.activePath ? pathname === item.activePath : false;
 
     return (
         <button
-            className={`group flex items-center w-full gap-2 h-9 rounded-lg text-body-sm transition-colors hover:text-gray-900 ${
-                isCollapsed ? "justify-center px-0" : "px-3"
+            className={`group flex w-full items-center gap-2 rounded-lg text-body-sm transition-colors hover:text-gray-900 ${
+                isCollapsed ? "h-9 justify-center px-0" : "h-9 px-3"
             } ${isActive ? "bg-gray-100 text-gray-900" : "text-gray-500"}`}
             onClick={item.onClick}
         >

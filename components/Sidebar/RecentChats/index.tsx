@@ -69,7 +69,9 @@ const readProjects = (): string[] => {
 };
 
 const saveProjects = (projects: string[]) => {
-    const uniqueProjects = [...new Set(projects.map((item) => item.trim()).filter(Boolean))];
+    const uniqueProjects = [
+        ...new Set(projects.map((item) => item.trim()).filter(Boolean)),
+    ];
     localStorage.setItem(getProjectsKey(), JSON.stringify(uniqueProjects));
     window.dispatchEvent(new Event("ai-projects-updated"));
     window.dispatchEvent(new Event("ai-chat-sessions-updated"));
@@ -249,105 +251,121 @@ const RecentChats = () => {
         setOpenedMenuId(null);
     };
 
-    const renderChatRow = (item: ChatSession) => (
-        <div
-            key={item.id}
-            className={`group relative flex items-center gap-1 rounded-lg ${
-                pathname.startsWith("/chat") && item.id === activeId
-                    ? "bg-gray-100"
-                    : "hover:bg-gray-50"
-            }`}
-        >
-            <Link
-                href={`/chat?id=${item.id}`}
-                className="min-w-0 flex-1 px-3 py-2"
-            >
-                <div className="flex items-center gap-2">
-                    {item.isPinned && (
-                        <Icon
-                            className="shrink-0 fill-gray-400"
-                            name="box-fill"
-                        />
-                    )}
+    const renderChatRow = (item: ChatSession) => {
+        const isActive = pathname.startsWith("/chat") && item.id === activeId;
 
-                    <div className="min-w-0 flex-1">
-                        <div
-                            className={`truncate text-body-sm ${
-                                pathname.startsWith("/chat") && item.id === activeId
-                                    ? "text-gray-900"
-                                    : "text-gray-700"
-                            }`}
-                        >
-                            {item.title || "Новый чат"}
+        return (
+            <div
+                key={item.id}
+                className={`group relative flex items-center gap-1 rounded-xl border transition-colors ${
+                    isActive
+                        ? "border-[#E9D5FF] bg-[#F8F3FF] shadow-[inset_3px_0_0_0_#8B5CF6]"
+                        : "border-transparent hover:bg-gray-50"
+                }`}
+            >
+                <Link
+                    href={`/chat?id=${item.id}`}
+                    className="min-w-0 flex-1 px-3 py-2"
+                >
+                    <div className="flex items-center gap-2">
+                        {item.isPinned && (
+                            <Icon
+                                className={`shrink-0 ${
+                                    isActive ? "fill-primary-300" : "fill-gray-400"
+                                }`}
+                                name="box-fill"
+                            />
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                            <div
+                                className={`truncate text-body-sm ${
+                                    isActive
+                                        ? "font-medium text-gray-900"
+                                        : "text-gray-700"
+                                }`}
+                            >
+                                {item.title || "Новый чат"}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </Link>
+                </Link>
 
-            <div
-                className="relative pr-2"
-                ref={openedMenuId === item.id ? menuRef : null}
-            >
-                <button
-                    type="button"
-                    className="flex size-8 items-center justify-center rounded-lg text-gray-400 opacity-100 transition hover:bg-gray-100 hover:text-gray-700"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setOpenedMenuId((prev) => (prev === item.id ? null : item.id));
-                    }}
+                <div
+                    className="relative pr-2"
+                    ref={openedMenuId === item.id ? menuRef : null}
                 >
-                    <Icon name="dots" className="fill-current" />
-                </button>
+                    <button
+                        type="button"
+                        className={`flex size-8 items-center justify-center rounded-lg transition ${
+                            isActive
+                                ? "text-gray-600 hover:bg-[#EFE4FF] hover:text-gray-900"
+                                : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        }`}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenedMenuId((prev) =>
+                                prev === item.id ? null : item.id
+                            );
+                        }}
+                    >
+                        <Icon name="dots" className="fill-current" />
+                    </button>
 
-                {openedMenuId === item.id && (
-                    <div className="absolute right-0 top-9 z-20 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
-                        <button
-                            type="button"
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => renameChat(item.id)}
-                        >
-                            <Icon name="pencil" className="fill-gray-500" />
-                            <span>Переименовать</span>
-                        </button>
+                    {openedMenuId === item.id && (
+                        <div className="absolute right-0 top-9 z-20 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                onClick={() => renameChat(item.id)}
+                            >
+                                <Icon name="pencil" className="fill-gray-500" />
+                                <span>Переименовать</span>
+                            </button>
 
-                        <button
-                            type="button"
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => moveToProject(item.id)}
-                        >
-                            <Icon name="box" className="fill-gray-500" />
-                            <span>Перенести в проект</span>
-                        </button>
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                onClick={() => moveToProject(item.id)}
+                            >
+                                <Icon name="box" className="fill-gray-500" />
+                                <span>Перенести в проект</span>
+                            </button>
 
-                        <button
-                            type="button"
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => togglePin(item.id)}
-                        >
-                            <Icon name="box-fill" className="fill-gray-500" />
-                            <span>{item.isPinned ? "Открепить чат" : "Закрепить чат"}</span>
-                        </button>
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                onClick={() => togglePin(item.id)}
+                            >
+                                <Icon name="box-fill" className="fill-gray-500" />
+                                <span>
+                                    {item.isPinned ? "Открепить чат" : "Закрепить чат"}
+                                </span>
+                            </button>
 
-                        <div className="my-1 h-px bg-gray-100" />
+                            <div className="my-1 h-px bg-gray-100" />
 
-                        <button
-                            type="button"
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50"
-                            onClick={() => deleteChat(item.id)}
-                        >
-                            <Icon name="trash" className="fill-red-500" />
-                            <span>Удалить</span>
-                        </button>
-                    </div>
-                )}
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50"
+                                onClick={() => deleteChat(item.id)}
+                            >
+                                <Icon name="trash" className="fill-red-500" />
+                                <span>Удалить</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
-        <div className="px-3 py-4">
-            <div className="mb-2 pl-2 text-body-xs">RECENT CHATS</div>
+        <div className="px-3 py-3">
+            <div className="mb-1.5 pl-2 text-[11px] font-medium tracking-wide text-gray-400">
+                Ваши чаты
+            </div>
 
             <div className="flex flex-col gap-1">
                 {visibleSessions.length === 0 && (
@@ -357,8 +375,8 @@ const RecentChats = () => {
                 )}
 
                 {groupedData.pinned.length > 0 && (
-                    <div className="mb-2">
-                        <div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                    <div className="mb-1">
+                        <div className="px-2 pb-1 text-[11px] font-medium tracking-wide text-gray-400">
                             Закреплённые
                         </div>
                         <div className="flex flex-col gap-0.5">
@@ -368,9 +386,9 @@ const RecentChats = () => {
                 )}
 
                 {groupedData.regular.length > 0 && (
-                    <div className="mb-2">
+                    <div className="mb-1">
                         {groupedData.pinned.length > 0 && (
-                            <div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                            <div className="px-2 pb-1 text-[11px] font-medium tracking-wide text-gray-400">
                                 Остальные
                             </div>
                         )}

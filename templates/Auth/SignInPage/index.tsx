@@ -16,6 +16,7 @@ const SignInPage = () => {
     const handleVerifyCode = () => {
         setStep("success");
     };
+
     return (
         <Layout>
             {step === "start" && (
@@ -23,14 +24,14 @@ const SignInPage = () => {
             )}
             {step === "verify" && (
                 <VerifyCode
-                    title="Verify your Zyra AI account"
+                    title="Подтвердите вход в MAX AI"
                     onContinue={handleVerifyCode}
                 />
             )}
             {step === "success" && (
                 <Success
-                    title="Login Successful!"
-                    description="Welcome back to Zyra let’s continue your journey."
+                    title="Вход выполнен"
+                    description="С возвращением! Продолжим работу в MAX AI."
                 />
             )}
         </Layout>

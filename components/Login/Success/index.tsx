@@ -17,7 +17,7 @@ const Success = ({ title, description, isResetPassword }: Props) => {
                         src="/images/success.png"
                         width={64}
                         height={64}
-                        alt="Logo"
+                        alt="Успешно"
                     />
                 </div>
 
@@ -31,11 +31,11 @@ const Success = ({ title, description, isResetPassword }: Props) => {
                     as="link"
                     href="/auth/sign-in"
                 >
-                    Sign in
+                    Войти
                 </Button>
             ) : (
                 <Button className="w-full" isPrimary as="link" href="/">
-                    Start Exploring Zyra
+                    Открыть MAX AI
                 </Button>
             )}
         </>

@@ -19,10 +19,11 @@ const Upgrade = ({ isCollapsed }: Props) => {
             ) : (
                 <div className="mx-3 p-4 rounded-xl bg-gray-0 max-2xl:bg-gray-25 max-md:p-0 max-md:bg-transparent">
                     <div className="mb-2 text-body-sm font-semibold">
-                        Try Zyra Pro
+                        Попробовать MAX AI Pro
                     </div>
                     <div className="mb-2 text-body-xs text-gray-400 [&_span]:text-primary-200">
-                        Experience premium Chat AI <span>one month</span> free
+                        Попробуйте расширенные возможности AI бесплатно
+                        <span> 1 месяц</span>
                     </div>
                     <Button
                         className="w-full"
@@ -31,7 +32,7 @@ const Upgrade = ({ isCollapsed }: Props) => {
                         as="link"
                         href="/settings?tab=pricing"
                     >
-                        Upgrade Plan
+                        Улучшить тариф
                     </Button>
                 </div>
             )}

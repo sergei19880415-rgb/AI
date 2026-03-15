@@ -30,6 +30,7 @@ type LoginResponse = {
     lastName?: string;
     planType?: string;
     allowedModels?: string;
+    maxParallelModels?: number | string;
     modelsCatalog?: ModelCatalogItem[];
     message?: string;
 };
@@ -40,8 +41,22 @@ const getSelectedModelKey = (userEmail: string) => {
     return `ai_selected_model_${userEmail.trim()}`;
 };
 
+const getParallelCountKey = (userEmail: string) => {
+    return `ai_parallel_count_${userEmail.trim()}`;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const normalizePositiveInt = (value: unknown, fallback: number) => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < 1) return fallback;
+    return Math.floor(num);
+};
+
+const getAllowedParallelOptions = (maxParallelModels: number) => {
+    return [1, 2, 4, 6].filter((item) => item <= maxParallelModels);
 };
 
 const toLoginResponse = (value: unknown): LoginResponse | null => {
@@ -59,6 +74,11 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
         allowedModels:
             typeof value.allowedModels === "string"
                 ? value.allowedModels
+                : undefined,
+        maxParallelModels:
+            typeof value.maxParallelModels === "number" ||
+            typeof value.maxParallelModels === "string"
+                ? value.maxParallelModels
                 : undefined,
         modelsCatalog: Array.isArray(value.modelsCatalog)
             ? (value.modelsCatalog as ModelCatalogItem[])
@@ -188,8 +208,41 @@ const Start = ({ onContinueWithEmail }: Props) => {
                     localStorage.removeItem(currentSelectedModelKey);
                 }
 
+                const maxParallelModels = normalizePositiveInt(
+                    data.maxParallelModels,
+                    1
+                );
+
+                localStorage.setItem(
+                    "ai_max_parallel_models",
+                    String(maxParallelModels)
+                );
+
+                const currentParallelCountKey = getParallelCountKey(cleanEmail);
+                const savedParallelCountRaw =
+                    localStorage.getItem(currentParallelCountKey) || "";
+                const savedParallelCount = normalizePositiveInt(
+                    savedParallelCountRaw,
+                    1
+                );
+
+                const allowedParallelOptions =
+                    getAllowedParallelOptions(maxParallelModels);
+
+                const defaultParallelCount = allowedParallelOptions.includes(
+                    savedParallelCount
+                )
+                    ? savedParallelCount
+                    : 1;
+
+                localStorage.setItem(
+                    currentParallelCountKey,
+                    String(defaultParallelCount)
+                );
+
                 window.dispatchEvent(new Event("ai-models-catalog-updated"));
                 window.dispatchEvent(new Event("ai-selected-model-updated"));
+                window.dispatchEvent(new Event("ai-parallel-settings-updated"));
 
                 if (remember) {
                     localStorage.setItem("ai_remember_email", cleanEmail);

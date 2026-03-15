@@ -203,7 +203,8 @@ const Space = () => {
             .sort((a, b) => a.localeCompare(b, "ru"))
             .map((projectName, index) => {
                 const meta = projectsMeta.find(
-                    (item) => item.name.toLowerCase() === projectName.toLowerCase()
+                    (item) =>
+                        item.name.toLowerCase() === projectName.toLowerCase()
                 );
 
                 return {
@@ -464,28 +465,51 @@ const Space = () => {
         return (
             <div
                 key={chat.id}
-                className={`group relative flex items-center ${
-                    isActive ? "bg-gray-100" : "hover:bg-gray-50"
+                className={`group relative flex items-center gap-1 rounded-xl border transition-colors ${
+                    isActive
+                        ? "border-[#E9D5FF] bg-[#F8F3FF] shadow-[inset_3px_0_0_0_#8B5CF6]"
+                        : "border-transparent hover:bg-gray-50"
                 }`}
             >
                 <Link
-                    className={`relative flex min-h-8 min-w-0 flex-1 items-center pl-9 pr-2 text-body-sm cursor-pointer transition-colors before:absolute before:top-0.5 before:left-5 before:bottom-0 before:z-1 before:border-l before:border-dashed before:pointer-events-none ${
-                        isActive
-                            ? "!text-gray-900 before:border-gray-200"
-                            : "hover:text-primary-200 before:border-gray-100"
-                    }`}
                     href={`/chat?id=${chat.id}`}
+                    className="min-w-0 flex-1 pl-9 pr-2 py-2"
                 >
-                    <span className="truncate">{chat.title || "Новый чат"}</span>
+                    <div className="relative flex items-center">
+                        <span className="absolute -left-4 top-1/2 h-3.5 -translate-y-1/2 border-l border-dashed border-gray-200" />
+
+                        {chat.isPinned && (
+                            <Icon
+                                className={`mr-2 shrink-0 ${
+                                    isActive ? "fill-primary-300" : "fill-gray-400"
+                                }`}
+                                name="box-fill"
+                            />
+                        )}
+
+                        <span
+                            className={`truncate text-body-sm ${
+                                isActive
+                                    ? "font-medium text-gray-900"
+                                    : "text-gray-700"
+                            }`}
+                        >
+                            {chat.title || "Новый чат"}
+                        </span>
+                    </div>
                 </Link>
 
                 <div
-                    className="relative pr-1"
+                    className="relative pr-1.5"
                     ref={openedMenuId === `chat-${chat.id}` ? menuRef : null}
                 >
                     <button
                         type="button"
-                        className="flex size-7 items-center justify-center rounded-lg text-gray-400 opacity-100 transition hover:bg-gray-100 hover:text-gray-700"
+                        className={`flex size-8 items-center justify-center rounded-lg transition ${
+                            isActive
+                                ? "text-gray-600 hover:bg-[#EFE4FF] hover:text-gray-900"
+                                : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        }`}
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -523,7 +547,9 @@ const Space = () => {
                                 onClick={() => togglePin(chat.id)}
                             >
                                 <Icon name="box-fill" className="fill-gray-500" />
-                                <span>{chat.isPinned ? "Открепить чат" : "Закрепить чат"}</span>
+                                <span>
+                                    {chat.isPinned ? "Открепить чат" : "Закрепить чат"}
+                                </span>
                             </button>
 
                             <button
@@ -553,12 +579,14 @@ const Space = () => {
     };
 
     return (
-        <div className="px-3 py-4 border-b border-gray-100">
-            <div className="mb-2 pl-2 text-body-xs uppercase">ПРОЕКТЫ</div>
+        <div className="border-b border-gray-100 px-3 py-3">
+            <div className="mb-1.5 pl-2 text-[11px] font-medium tracking-wide text-gray-400">
+                Проекты
+            </div>
 
             <button
                 type="button"
-                className="group mb-2 flex items-center w-full gap-2 h-9 rounded-lg px-3 text-body-sm text-gray-500 transition-colors hover:text-gray-900"
+                className="group mb-1.5 flex h-9 w-full items-center gap-2 rounded-lg px-3 text-body-sm text-gray-500 transition-colors hover:text-gray-900"
                 onClick={openCreateProjectModal}
             >
                 <Icon
@@ -568,14 +596,13 @@ const Space = () => {
                 Новый проект
             </button>
 
-            {projectGroups.length === 0 ? (
-                <div className="px-3 py-2 text-body-sm text-gray-400">
-                    Пока нет проектов
-                </div>
-            ) : (
-                <div className="flex flex-col gap-2">
+            {projectGroups.length > 0 && (
+                <div className="flex flex-col gap-1">
                     {projectGroups.map((project) => {
                         const isOpen = openedProject === project.title;
+                        const hasActiveChat = project.chats.some(
+                            (chat) => chat.id === activeChatId
+                        );
 
                         return (
                             <div key={project.title}>
@@ -589,31 +616,51 @@ const Space = () => {
                                 >
                                     <button
                                         type="button"
-                                        className="group flex h-8 min-w-0 flex-1 items-center gap-2 px-3 text-left text-body-sm transition-colors cursor-pointer hover:text-primary-200"
+                                        className={`group flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-left text-body-sm transition-colors ${
+                                            hasActiveChat
+                                                ? "bg-[#F8F3FF] text-gray-900"
+                                                : "text-gray-700 hover:bg-gray-50"
+                                        }`}
                                         onClick={() =>
                                             setOpenedProject((prev) =>
-                                                prev === project.title ? null : project.title
+                                                prev === project.title
+                                                    ? null
+                                                    : project.title
                                             )
                                         }
                                     >
                                         <Image
-                                            className="shrink-0 w-4 opacity-100"
+                                            className="w-4 shrink-0 opacity-100"
                                             src={project.image}
                                             width={16}
                                             height={16}
                                             alt={project.title}
                                         />
 
-                                        <span className="truncate">{project.title}</span>
+                                        <span
+                                            className={`truncate ${
+                                                hasActiveChat ? "font-medium" : ""
+                                            }`}
+                                        >
+                                            {project.title}
+                                        </span>
 
-                                        <span className="ml-auto text-[11px] text-gray-400">
+                                        <span
+                                            className={`ml-auto text-[11px] ${
+                                                hasActiveChat
+                                                    ? "text-primary-300"
+                                                    : "text-gray-400"
+                                            }`}
+                                        >
                                             {project.chats.length}
                                         </span>
 
                                         <Icon
-                                            className={`shrink-0 fill-gray-500 transition-all ${
-                                                isOpen ? "rotate-180" : ""
-                                            }`}
+                                            className={`shrink-0 transition-all ${
+                                                hasActiveChat
+                                                    ? "fill-primary-300"
+                                                    : "fill-gray-500"
+                                            } ${isOpen ? "rotate-180" : ""}`}
                                             name="chevron"
                                         />
                                     </button>
@@ -621,7 +668,11 @@ const Space = () => {
                                     <div className="relative pr-1">
                                         <button
                                             type="button"
-                                            className="flex size-7 items-center justify-center rounded-lg text-gray-400 opacity-100 transition hover:bg-gray-100 hover:text-gray-700"
+                                            className={`flex size-8 items-center justify-center rounded-lg transition ${
+                                                hasActiveChat
+                                                    ? "text-gray-600 hover:bg-[#EFE4FF] hover:text-gray-900"
+                                                    : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                                            }`}
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
@@ -663,13 +714,7 @@ const Space = () => {
 
                                 <AnimateHeight duration={300} height={isOpen ? "auto" : 0}>
                                     <div className="relative flex flex-col gap-0.5 pt-0.5">
-                                        {project.chats.length === 0 ? (
-                                            <div className="pl-9 pr-3 py-2 text-[12px] text-gray-400">
-                                                В проекте пока нет чатов
-                                            </div>
-                                        ) : (
-                                            project.chats.map(renderProjectChatRow)
-                                        )}
+                                        {project.chats.map(renderProjectChatRow)}
                                     </div>
                                 </AnimateHeight>
                             </div>

@@ -7,7 +7,7 @@ import { chats } from "./chats";
 const ArchivedChat = ({}) => {
     return (
         <>
-            <div className="font-medium">Archived Chat</div>
+            <div className="font-medium">Архив чатов</div>
             {chats.length > 0 ? (
                 <div className="flex flex-col gap-2 mt-8">
                     {chats.map((chat) => (
@@ -29,7 +29,7 @@ const ArchivedChat = ({}) => {
                                     as="link"
                                     href="/archived-chat"
                                 >
-                                    View chat
+                                    Открыть чат
                                 </Button>
                                 <div className="flex gap-2">
                                     <button className="text-0 transition-opacity hover:opacity-85">

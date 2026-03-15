@@ -1,5 +1,4 @@
 import Button from "@/components/Button";
-import Icon from "@/components/Icon";
 import ChatVersions from "./ChatVersions";
 
 type Props = {
@@ -8,9 +7,9 @@ type Props = {
 };
 
 const Header = ({ title, onOpenSidebar }: Props) => (
-    <div className="relative flex items-center p-6 border-b border-gray-100 max-2xl:py-5 max-md:fixed max-md:top-0 max-md:left-0 max-md:right-0 max-md:z-10 max-md:h-16 max-md:px-4 max-md:py-0 max-md:bg-gray-0">
+    <div className="relative flex items-center border-b border-gray-100 p-6 max-2xl:py-5 max-md:fixed max-md:top-0 max-md:left-0 max-md:right-0 max-md:z-10 max-md:h-16 max-md:bg-gray-0 max-md:px-4 max-md:py-0">
         <Button
-            className="!hidden flex-col shrink-0 !gap-0.75 w-8 mr-3 !px-0 [&_span]:w-3 [&_span]:h-[1.5px] [&_span]:bg-gray-800 max-2xl:!flex max-md:order-1"
+            className="!hidden w-8 shrink-0 flex-col !gap-0.75 !px-0 mr-3 [&_span]:h-[1.5px] [&_span]:w-3 [&_span]:bg-gray-800 max-2xl:!flex"
             isSecondary
             isXSmall
             onClick={onOpenSidebar}
@@ -19,18 +18,12 @@ const Header = ({ title, onOpenSidebar }: Props) => (
             <span></span>
             <span></span>
         </Button>
+
         <ChatVersions />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 truncate font-semibold max-md:static max-md:order-2 max-md:mr-auto max-md:translate-x-0 max-md:translate-y-0 max-md:pr-3">
-            {title || "Chat"}
+
+        <div className="ml-auto pr-1 text-right font-semibold text-gray-900 max-md:pr-0">
+            {title || "Чат"}
         </div>
-        <Button
-            className="shrink-0 ml-auto max-md:order-4 max-md:gap-0 max-md:w-8 max-md:ml-3 max-md:!px-0 max-md:!text-0"
-            isSecondary
-            isXSmall
-        >
-            Help
-            <Icon name="help-circle" />
-        </Button>
     </div>
 );
 

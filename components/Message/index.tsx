@@ -25,12 +25,12 @@ const Message = ({ image, file, children }: Props) => {
     ];
 
     return (
-        <div className="">
+        <div>
             {image && (
-                <div className="flex flex-wrap justify-end gap-2 mb-2">
+                <div className="mb-2 flex flex-wrap justify-end gap-2">
                     <div className="w-50">
                         <Image
-                            className="w-full opacity-100 rounded-md"
+                            className="w-full rounded-md opacity-100"
                             src={image}
                             width={200}
                             height={200}
@@ -39,13 +39,16 @@ const Message = ({ image, file, children }: Props) => {
                     </div>
                 </div>
             )}
-            <div className="flex justify-end items-start gap-2">
-                <div className="">
-                    <div className="content p-3 rounded-3xl rounded-tr-none bg-gray-50 max-md:rounded-2xl max-md:rounded-tr-none">
+
+            <div className="flex items-start justify-end gap-2">
+                <div>
+                    <div className="content rounded-3xl rounded-tr-none bg-[#EAF4FF] px-3 py-2 text-[13px] leading-5 text-slate-700 max-md:rounded-2xl max-md:rounded-tr-none">
                         {children}
                     </div>
+
                     {file && <File />}
-                    <div className="flex justify-end gap-2 mt-2">
+
+                    <div className="mt-1.5 flex justify-end gap-2">
                         {actions.map((action) => (
                             <button
                                 className="group text-0"
@@ -60,7 +63,8 @@ const Message = ({ image, file, children }: Props) => {
                         ))}
                     </div>
                 </div>
-                <div className="shrink-0 size-6 rounded-full overflow-hidden border border-gray-0 shadow-[0_0.0625rem_0.125rem_0_rgba(0,0,0,0.08)]">
+
+                <div className="size-6 shrink-0 overflow-hidden rounded-full border border-gray-0 shadow-[0_0.0625rem_0.125rem_0_rgba(0,0,0,0.08)]">
                     <Image
                         className="size-full opacity-100"
                         src="/images/avatar-1.jpg"

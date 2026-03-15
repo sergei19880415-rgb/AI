@@ -11,7 +11,7 @@ const ChatPage = () => {
     return (
         <Layout
             classWrapper="wrapper flex flex-col gap-6"
-            title="Archived Chat"
+            title="Архив чата"
             archived
         >
             {content.map((item) => (

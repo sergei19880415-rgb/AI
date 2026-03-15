@@ -9,9 +9,9 @@ const NoArchivedChat = ({}) => (
             height={80}
             alt=""
         />
-        <div className="mb-2 font-medium text-gray-700">No Archived Chat</div>
+        <div className="mb-2 font-medium text-gray-700">Архив пуст</div>
         <div className="text-body-sm text-gray-500">
-            You have no archived conversation
+            У вас пока нет архивных чатов
         </div>
     </div>
 );

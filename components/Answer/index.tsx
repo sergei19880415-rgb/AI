@@ -48,11 +48,19 @@ const Answer = ({ image, video, modelLabel, children }: Props) => {
         typeof children === "string"
             ? children
             : Array.isArray(children)
-            ? children.join(" ")
-            : "";
+              ? children.join(" ")
+              : "";
+
+    const trimmedContentText = contentText.trim();
+
+    const isHtmlImageAnswer =
+        typeof children === "string" &&
+        /^<img[\s\S]*?>$/i.test(trimmedContentText);
 
     const showModelLabel =
-        !!modelLabel && !contentText.startsWith("Печатает...");
+        !!modelLabel && !trimmedContentText.startsWith("Печатает...");
+
+    const hideActions = !!image || !!video || isHtmlImageAnswer;
 
     return (
         <div>
@@ -67,10 +75,18 @@ const Answer = ({ image, video, modelLabel, children }: Props) => {
                     />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                     {children && (
                         <div className="content p-3 rounded-3xl rounded-tl-none bg-gray-50 max-md:rounded-2xl max-md:rounded-tl-none">
-                            {children}
+                            {isHtmlImageAnswer ? (
+                                <div
+                                    dangerouslySetInnerHTML={{
+                                        __html: trimmedContentText,
+                                    }}
+                                />
+                            ) : (
+                                children
+                            )}
                         </div>
                     )}
 
@@ -83,24 +99,22 @@ const Answer = ({ image, video, modelLabel, children }: Props) => {
                         </div>
                     )}
 
-                    <div className="mt-2 flex gap-2">
-                        {actions.map((action) => (
-                            <button
-                                className={`group text-0 ${
-                                    image || video
-                                        ? "[&:last-child]:hidden"
-                                        : ""
-                                }`}
-                                key={action.icon}
-                                onClick={action.onClick}
-                            >
-                                <Icon
-                                    className="fill-gray-500 transition-colors group-hover:fill-gray-900"
-                                    name={action.icon}
-                                />
-                            </button>
-                        ))}
-                    </div>
+                    {!hideActions && (
+                        <div className="mt-2 flex gap-2">
+                            {actions.map((action) => (
+                                <button
+                                    className="group text-0"
+                                    key={action.icon}
+                                    onClick={action.onClick}
+                                >
+                                    <Icon
+                                        className="fill-gray-500 transition-colors group-hover:fill-gray-900"
+                                        name={action.icon}
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

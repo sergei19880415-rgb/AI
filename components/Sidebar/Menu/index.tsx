@@ -11,6 +11,15 @@ type Props = {
     isCollapsed: boolean;
 };
 
+type MenuItem = {
+    title: string;
+    icon: string;
+    iconActive: string;
+    href?: string;
+    onClick?: () => void;
+    activePath?: string;
+};
+
 const Menu = ({ isCollapsed }: Props) => {
     const [openModalSpace, setOpenModalSpace] = useState(false);
     const [openModalArchivedChat, setOpenModalArchivedChat] = useState(false);
@@ -33,33 +42,34 @@ const Menu = ({ isCollapsed }: Props) => {
         };
     }, []);
 
-    const items = [
+    const items: MenuItem[] = [
         {
-            title: "Chat",
+            title: "Чат",
             icon: "chat",
             iconActive: "chat-fill",
-            href: "/",
+            href: "/chat",
         },
         {
-            title: "Gallery Library",
+            title: "Галерея",
             icon: "gallery",
             iconActive: "gallery-fill",
             href: "/gallery-library",
         },
         {
-            title: "Space",
+            title: "Проекты",
             icon: "folders",
             iconActive: "folders-fill",
             onClick: () => setOpenModalSpace(true),
         },
         {
-            title: "Archive",
+            title: "Архив",
             icon: "box",
             iconActive: "box-fill",
+            activePath: "/archived-chat",
             onClick: () => setOpenModalArchivedChat(true),
         },
         {
-            title: "Settings",
+            title: "Настройки",
             icon: "settings",
             iconActive: "settings-fill",
             href: "/settings",
@@ -69,15 +79,11 @@ const Menu = ({ isCollapsed }: Props) => {
     return (
         <>
             <div
-                className={`py-4 border-b border-gray-100 ${
+                className={`border-b border-gray-100 py-3 ${
                     isCollapsed ? "px-1.5" : "px-3"
                 }`}
             >
-                {!isCollapsed && (
-                    <div className="mb-2 pl-2 text-body-xs">MAIN MENU</div>
-                )}
-
-                <div>
+                <div className="flex flex-col gap-0.5">
                     {items.map((item, index) =>
                         item.href ? (
                             <NavLink
@@ -97,7 +103,7 @@ const Menu = ({ isCollapsed }: Props) => {
             </div>
 
             <Modal
-                classWrapper="relative w-full max-w-[640px] px-6 py-5 bg-gray-0 rounded-xl border border-gray-50"
+                classWrapper="relative w-full max-w-[640px] rounded-xl border border-gray-50 bg-gray-0 px-6 py-5"
                 classButtonClose="!top-4.5 !right-4 size-auto [&_svg]:!size-5 max-md:!size-auto"
                 open={openModalSpace}
                 onClose={() => setOpenModalSpace(false)}
@@ -106,7 +112,7 @@ const Menu = ({ isCollapsed }: Props) => {
             </Modal>
 
             <Modal
-                classWrapper="relative max-w-100 px-5 py-4 bg-gray-0 rounded-xl border border-gray-50"
+                classWrapper="relative max-w-100 rounded-xl border border-gray-50 bg-gray-0 px-5 py-4"
                 classButtonClose="!top-4.5 !right-4 size-auto [&_svg]:!size-5 max-md:!size-auto"
                 open={openModalArchivedChat}
                 onClose={() => setOpenModalArchivedChat(false)}

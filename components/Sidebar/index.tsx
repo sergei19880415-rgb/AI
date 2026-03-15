@@ -8,7 +8,6 @@ import Button from "@/components/Button";
 import Menu from "./Menu";
 import Space from "./Space";
 import RecentChats from "./RecentChats";
-import Upgrade from "./Upgrade";
 import User from "./User";
 
 type Props = {
@@ -83,20 +82,20 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
 
     return (
         <div
-            className={`fixed top-0 left-0 bottom-0 flex flex-col max-2xl:z-30 max-2xl:transition-transform max-2xl:bg-gray-0 max-2xl:duration-300 ${
+            className={`z-20 flex h-[calc(100svh-1rem)] shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white max-2xl:fixed max-2xl:inset-y-0 max-2xl:left-0 max-2xl:z-30 max-2xl:h-[100svh] max-2xl:rounded-none max-2xl:border-b-0 max-2xl:border-l-0 max-2xl:border-r max-2xl:border-t-0 max-2xl:transition-transform max-2xl:duration-300 ${
                 isCollapsed
-                    ? "w-18 px-3"
+                    ? "w-18 max-2xl:w-70 max-md:w-full"
                     : "w-70 max-4xl:w-60 max-2xl:w-70 max-md:w-full"
             } ${
                 visible ? "max-2xl:translate-x-0" : "max-2xl:-translate-x-full"
             }`}
         >
             <div
-                className={`flex items-center gap-3 px-3 py-4 border-b border-gray-100 ${
+                className={`flex items-center gap-3 border-b border-gray-100 px-3 py-3.5 ${
                     isCollapsed ? "flex-col" : "flex-row justify-between"
                 }`}
             >
-                <Link className="flex items-center gap-2" href="/">
+                <Link className="flex items-center gap-2" href="/chat">
                     <Image
                         className="w-6 opacity-100"
                         src="/images/logo.svg"
@@ -104,7 +103,9 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                         height={24}
                         alt="Logo"
                     />
-                    {!isCollapsed && <span className="font-medium">MAX AI</span>}
+                    {!isCollapsed && (
+                        <span className="font-semibold">MAX AI</span>
+                    )}
                 </Link>
 
                 <button
@@ -127,20 +128,20 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
 
             <div className="grow overflow-y-auto scrollbar-none">
                 <div
-                    className={`py-3 border-b border-gray-100 ${
-                        isCollapsed ? "px-0" : "px-3"
+                    className={`border-b border-gray-100 py-2.5 ${
+                        isCollapsed ? "px-2.5" : "px-3"
                     }`}
                 >
                     <Button
-                        className={`w-full !gap-0 ${
-                            isCollapsed ? "!px-0" : ""
-                        }`}
+                        className={`w-full !gap-0 ${isCollapsed ? "!px-0" : ""}`}
                         icon="plus"
                         isPrimary
                         isXSmall
                         onClick={handleNewChat}
                     >
-                        {!isCollapsed && <span className="ml-2">New Chat</span>}
+                        {!isCollapsed && (
+                            <span className="ml-2">Новый чат</span>
+                        )}
                     </Button>
                 </div>
 
@@ -154,7 +155,6 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                 )}
             </div>
 
-            <Upgrade isCollapsed={isCollapsed} />
             <User isCollapsed={isCollapsed} />
         </div>
     );

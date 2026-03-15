@@ -18,12 +18,12 @@ const themeOptions = [
 const documents = [
     {
         id: 0,
-        name: "Terms of service",
+        name: "Пользовательское соглашение",
         link: "/",
     },
     {
         id: 1,
-        name: "Privacy policy",
+        name: "Политика конфиденциальности",
         link: "/",
     },
 ];
@@ -41,7 +41,7 @@ const Layout = ({ children }: Props) => {
                     options={themeOptions}
                 />
                 <Button className="ml-auto" isSecondary isMedium>
-                    Help
+                    Помощь
                     <Icon name="help-circle" />
                 </Button>
             </div>
@@ -51,7 +51,7 @@ const Layout = ({ children }: Props) => {
                 </div>
             </div>
             <div className="flex justify-between items-center h-21 px-10 max-xl:h-16 max-xl:px-4 max-md:h-auto max-md:flex-col max-md:gap-2.5 max-md:py-8">
-                <div className="text-gray-400">©️ 2025 Zyra ChatAI</div>
+                <div className="text-gray-400">©️ 2025 MAX AI</div>
                 <div className="flex gap-8 max-md:gap-12">
                     {documents.map((document) => (
                         <Link

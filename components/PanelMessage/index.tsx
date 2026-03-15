@@ -1,42 +1,14 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
-import { useSearchParams } from "next/navigation";
-import TextareaAutosize from "react-textarea-autosize";
+<div className="mb-2 rounded-xl border-2 border-red-500 bg-red-100 px-4 py-3 text-sm font-bold text-red-700">
+    PANELMESSAGE TEST
+</div>
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "@/components/Image";
 import Icon from "@/components/Icon";
-import Button from "@/components/Button";
-import PreviewImage from "./PreviewImage";
-import PreviewFile from "./PreviewFile";
-import ChatFeatures from "./ChatFeatures";
-import Attach from "./Attach";
-import Language from "./Language";
-import Audio from "./Audio";
-import Voice from "./Voice";
-import Time from "./Time";
-import CloseLine from "./CloseLine";
-import RecreateVideo from "./RecreateVideo";
 
-const WEBHOOK_URL =
-    "https://tgdomen.ru/webhook/3bcfce39-4b24-4493-b3a7-cab0030e8a36";
-
-const FALLBACK_MODEL = "gpt-5-nano";
-const FALLBACK_EMAIL = "Sergei19880415@gmail.com";
-
-type ChatMessage = {
-    id: string;
-    role: "user" | "assistant";
-    content: string;
-    isLoading?: boolean;
-    model_id?: string;
-    model_display_name?: string;
-};
-
-type ChatSession = {
-    id: string;
-    title: string;
-    messages: ChatMessage[];
-    updatedAt: number;
-};
+type ModelMode = "text" | "image";
 
 type ModelCatalogItem = {
     model_id: string;
@@ -47,46 +19,19 @@ type ModelCatalogItem = {
     input_price_per_1m?: number | null;
     output_price_per_1m?: number | null;
     is_active?: boolean;
+    mode_type?: ModelMode | string;
 };
 
 const getUserEmail = () => {
     return (localStorage.getItem("ai_user_email") || "guest").trim();
 };
 
-const getSessionsKey = () => {
-    return `ai_sessions_${getUserEmail()}`;
-};
-
-const getCurrentSessionKey = () => {
-    return `ai_current_session_${getUserEmail()}`;
-};
-
 const getSelectedModelKey = () => {
     return `ai_selected_model_${getUserEmail()}`;
 };
 
-const readSessions = (): ChatSession[] => {
-    try {
-        const raw = localStorage.getItem(getSessionsKey());
-        if (!raw) return [];
-
-        const parsed: unknown = JSON.parse(raw);
-        return Array.isArray(parsed) ? (parsed as ChatSession[]) : [];
-    } catch {
-        return [];
-    }
-};
-
-const saveSessions = (sessions: ChatSession[]) => {
-    localStorage.setItem(getSessionsKey(), JSON.stringify(sessions));
-    window.dispatchEvent(new Event("ai-chat-sessions-updated"));
-    window.dispatchEvent(new Event("ai-chat-updated"));
-};
-
-const getSessionTitleFromText = (text: string) => {
-    const clean = text.trim();
-    if (!clean) return "Новый чат";
-    return clean.length > 60 ? `${clean.slice(0, 60)}...` : clean;
+const getActiveModeKey = () => {
+    return `ai_active_mode_${getUserEmail()}`;
 };
 
 const getModelsCatalog = (): ModelCatalogItem[] => {
@@ -94,427 +39,366 @@ const getModelsCatalog = (): ModelCatalogItem[] => {
         const raw = localStorage.getItem("ai_models_catalog");
         if (!raw) return [];
 
-        const parsed: unknown = JSON.parse(raw);
-        return Array.isArray(parsed) ? (parsed as ModelCatalogItem[]) : [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
     } catch {
         return [];
     }
 };
 
-const getAllowedModels = (): string[] => {
-    const fromCatalog = getModelsCatalog()
-        .map((item) => String(item?.model_id || "").trim())
-        .filter(Boolean);
-
-    if (fromCatalog.length > 0) {
-        return fromCatalog;
-    }
-
-    return (localStorage.getItem("ai_allowed_models") || "")
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
+const normalizeModeType = (value: unknown): ModelMode => {
+    return String(value || "text").trim().toLowerCase() === "image"
+        ? "image"
+        : "text";
 };
 
-const getCurrentModelInfo = (): { modelId: string; displayName: string } => {
-    const catalog = getModelsCatalog();
-    const allowedModels = getAllowedModels();
-    const savedSelected = localStorage.getItem(getSelectedModelKey()) || "";
+const getHeaderMode = (): ModelMode => {
+    const raw = (localStorage.getItem(getActiveModeKey()) || "text")
+        .trim()
+        .toLowerCase();
 
-    if (savedSelected && allowedModels.includes(savedSelected)) {
-        const found = catalog.find((item) => item.model_id === savedSelected);
-
-        return {
-            modelId: savedSelected,
-            displayName: (found?.display_name || savedSelected).trim(),
-        };
-    }
-
-    const fallback = allowedModels[0] || FALLBACK_MODEL;
-    const fallbackFromCatalog = catalog.find((item) => item.model_id === fallback);
-
-    if (fallback) {
-        localStorage.setItem(getSelectedModelKey(), fallback);
-    }
-
-    return {
-        modelId: fallback,
-        displayName: (fallbackFromCatalog?.display_name || fallback).trim(),
-    };
+    return raw === "image" ? "image" : "text";
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-};
+const groupModelsByProvider = (models: ModelCatalogItem[]) => {
+    const map = new Map<string, ModelCatalogItem[]>();
 
-const readTextField = (value: unknown, field: string): string | null => {
-    if (!isRecord(value)) return null;
+    const sorted = [...models].sort((a, b) => {
+        const groupA = Number(a.group_order ?? 9999);
+        const groupB = Number(b.group_order ?? 9999);
 
-    const fieldValue = value[field];
+        if (groupA !== groupB) return groupA - groupB;
 
-    if (
-        typeof fieldValue === "string" ||
-        typeof fieldValue === "number" ||
-        typeof fieldValue === "boolean"
-    ) {
-        return String(fieldValue);
-    }
+        const providerA = String(a.provider || "Other");
+        const providerB = String(b.provider || "Other");
 
-    return null;
-};
-
-const extractAnswerText = (value: unknown): string | null => {
-    const directAnswer = readTextField(value, "answer");
-    if (directAnswer) return directAnswer;
-
-    const directText = readTextField(value, "text");
-    if (directText) return directText;
-
-    const directMessage = readTextField(value, "message");
-    if (directMessage) return directMessage;
-
-    if (isRecord(value)) {
-        const nestedJson = value.json;
-
-        const nestedAnswer = readTextField(nestedJson, "answer");
-        if (nestedAnswer) return nestedAnswer;
-
-        const nestedText = readTextField(nestedJson, "text");
-        if (nestedText) return nestedText;
-    }
-
-    return null;
-};
-
-const PanelMessage = () => {
-    const searchParams = useSearchParams();
-    const sessionIdFromUrl = searchParams.get("id") || "";
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    const [message, setMessage] = useState("");
-    const [attachImage, setAttachImage] = useState(false);
-    const [attachFile, setAttachFile] = useState(false);
-    const [generateVideo, setGenerateVideo] = useState(false);
-    const [isSending, setIsSending] = useState(false);
-
-    const parseResponseText = (raw: string, status: number): string => {
-        const trimmed = raw.trim();
-
-        if (!trimmed) {
-            return `Пустое тело ответа. status=${status}`;
+        if (providerA !== providerB) {
+            return providerA.localeCompare(providerB);
         }
 
-        try {
-            let data: unknown = JSON.parse(trimmed);
+        const modelA = Number(a.model_order ?? 9999);
+        const modelB = Number(b.model_order ?? 9999);
 
-            if (typeof data === "string") {
-                try {
-                    data = JSON.parse(data) as unknown;
-                } catch {
-                    return typeof data === "string" ? data : String(data);
-                }
-            }
+        return modelA - modelB;
+    });
 
-            if (Array.isArray(data)) {
-                const first = data[0];
+    for (const item of sorted) {
+        const provider = String(item.provider || "Other").trim() || "Other";
 
-                if (typeof first === "string") return first;
-
-                const extracted = extractAnswerText(first);
-                if (extracted) return extracted;
-
-                return JSON.stringify(first, null, 2);
-            }
-
-            if (isRecord(data)) {
-                const extracted = extractAnswerText(data);
-                if (extracted) return extracted;
-
-                return JSON.stringify(data, null, 2);
-            }
-
-            return String(data);
-        } catch {
-            return trimmed;
+        if (!map.has(provider)) {
+            map.set(provider, []);
         }
-    };
 
-    const handleStop = () => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-    };
+        map.get(provider)!.push(item);
+    }
 
-    const sendMessage = async () => {
-        const text = message.trim();
-        if (!text || isSending) return;
+    return Array.from(map.entries()).map(([provider, items]) => ({
+        provider,
+        items,
+    }));
+};
 
-        const currentUser =
-            localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+const ChatVersions = () => {
+    const rootRef = useRef<HTMLDivElement | null>(null);
 
-        const currentModelInfo = getCurrentModelInfo();
+    const [isOpen, setIsOpen] = useState(false);
+    const [step, setStep] = useState<"providers" | "models">("providers");
+    const [selectedProvider, setSelectedProvider] = useState("");
+    const [headerMode, setHeaderMode] = useState<ModelMode>("text");
+    const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
+    const [selectedModelId, setSelectedModelId] = useState("");
 
-        const sessions = readSessions();
+    const visibleCatalog = useMemo(() => {
+        return modelsCatalog.filter(
+            (item) => normalizeModeType(item.mode_type) === headerMode
+        );
+    }, [modelsCatalog, headerMode]);
 
-        let currentSession =
-            sessions.find((item) => item.id === sessionIdFromUrl) ||
-            sessions.find(
-                (item) =>
-                    item.id === localStorage.getItem(getCurrentSessionKey())
-            );
+    const groupedProviders = useMemo(() => {
+        return groupModelsByProvider(visibleCatalog);
+    }, [visibleCatalog]);
 
-        if (!currentSession) {
-            currentSession = {
-                id: crypto.randomUUID(),
-                title: "Новый чат",
-                messages: [],
-                updatedAt: Date.now(),
-            };
-            saveSessions([currentSession, ...sessions]);
-            localStorage.setItem(getCurrentSessionKey(), currentSession.id);
-            window.location.href = `/chat?id=${currentSession.id}`;
+    const currentModel = useMemo(() => {
+        return (
+            visibleCatalog.find((item) => item.model_id === selectedModelId) ||
+            visibleCatalog[0] ||
+            null
+        );
+    }, [visibleCatalog, selectedModelId]);
+
+    const currentProviderModels = useMemo(() => {
+        const group = groupedProviders.find(
+            (item) => item.provider === selectedProvider
+        );
+        return group ? group.items : [];
+    }, [groupedProviders, selectedProvider]);
+
+    const loadState = () => {
+        const catalog = getModelsCatalog();
+        const nextHeaderMode = getHeaderMode();
+        const selectedKey = getSelectedModelKey();
+        const savedSelected = (localStorage.getItem(selectedKey) || "").trim();
+
+        const filteredCatalog = catalog.filter(
+            (item) => normalizeModeType(item.mode_type) === nextHeaderMode
+        );
+
+        setModelsCatalog(catalog);
+        setHeaderMode(nextHeaderMode);
+
+        const hasSavedModel = filteredCatalog.some(
+            (item) => item.model_id === savedSelected
+        );
+
+        if (hasSavedModel) {
+            setSelectedModelId(savedSelected);
             return;
         }
 
-        const userMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: "user",
-            content: text,
-        };
+        const fallback = filteredCatalog[0]?.model_id || "";
+        setSelectedModelId(fallback);
 
-        const loadingMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: "Печатает...",
-            isLoading: true,
-            model_id: currentModelInfo.modelId,
-            model_display_name: currentModelInfo.displayName,
-        };
-
-        const nextMessages = [
-            ...(currentSession.messages || []),
-            userMessage,
-            loadingMessage,
-        ];
-
-        const nextSessions = sessions.map((item) =>
-            item.id === currentSession!.id
-                ? {
-                      ...item,
-                      title:
-                          item.messages.length === 0
-                              ? getSessionTitleFromText(text)
-                              : item.title,
-                      messages: nextMessages,
-                      updatedAt: Date.now(),
-                  }
-                : item
-        );
-
-        saveSessions(nextSessions);
-        localStorage.setItem(getCurrentSessionKey(), currentSession.id);
-
-        setMessage("");
-        setIsSending(true);
-
-        try {
-            const history = nextMessages
-                .filter((item) => !item.isLoading)
-                .map((item) => ({
-                    role: item.role,
-                    content: item.content,
-                }))
-                .slice(-20);
-
-            const controller = new AbortController();
-            abortControllerRef.current = controller;
-
-            const response = await fetch(WEBHOOK_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    user_query: text,
-                    model: currentModelInfo.modelId,
-                    history,
-                    user_email: currentUser,
-                }),
-                signal: controller.signal,
-            });
-
-            const raw = await response.text();
-
-            let answerText = "";
-
-            if (response.ok) {
-                answerText = parseResponseText(raw, response.status);
-            } else {
-                answerText =
-                    raw.trim() || `Ошибка сервера. status=${response.status}`;
-            }
-
-            const refreshedSessions = readSessions();
-            const finalSessions = refreshedSessions.map((item) => {
-                if (item.id !== currentSession!.id) return item;
-
-                return {
-                    ...item,
-                    messages: item.messages.map((msg) =>
-                        msg.id === loadingMessage.id
-                            ? {
-                                  id: msg.id,
-                                  role: "assistant" as const,
-                                  content: answerText,
-                                  model_id: currentModelInfo.modelId,
-                                  model_display_name:
-                                      currentModelInfo.displayName,
-                              }
-                            : msg
-                    ),
-                    updatedAt: Date.now(),
-                };
-            });
-
-            saveSessions(finalSessions);
-        } catch (error) {
-            const refreshedSessions = readSessions();
-
-            if (
-                error instanceof DOMException &&
-                error.name === "AbortError"
-            ) {
-                const finalSessions = refreshedSessions.map((item) => {
-                    if (item.id !== currentSession!.id) return item;
-
-                    return {
-                        ...item,
-                        messages: item.messages.map((msg) =>
-                            msg.id === loadingMessage.id
-                                ? {
-                                      id: msg.id,
-                                      role: "assistant" as const,
-                                      content: "Ответ остановлен",
-                                      model_id: currentModelInfo.modelId,
-                                      model_display_name:
-                                          currentModelInfo.displayName,
-                                  }
-                                : msg
-                        ),
-                        updatedAt: Date.now(),
-                    };
-                });
-
-                saveSessions(finalSessions);
-            } else {
-                const errorText =
-                    error instanceof Error ? error.message : "Ошибка сети";
-
-                const finalSessions = refreshedSessions.map((item) => {
-                    if (item.id !== currentSession!.id) return item;
-
-                    return {
-                        ...item,
-                        messages: item.messages.map((msg) =>
-                            msg.id === loadingMessage.id
-                                ? {
-                                      id: msg.id,
-                                      role: "assistant" as const,
-                                      content: `Ошибка сети: ${errorText}`,
-                                      model_id: currentModelInfo.modelId,
-                                      model_display_name:
-                                          currentModelInfo.displayName,
-                                  }
-                                : msg
-                        ),
-                        updatedAt: Date.now(),
-                    };
-                });
-
-                saveSessions(finalSessions);
-            }
-        } finally {
-            abortControllerRef.current = null;
-            setIsSending(false);
+        if (fallback) {
+            localStorage.setItem(selectedKey, fallback);
+            window.dispatchEvent(new Event("ai-selected-model-updated"));
         }
     };
 
-    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (isSending) {
-                handleStop();
-                return;
+    useEffect(() => {
+        loadState();
+
+        const handleModelsUpdate = () => {
+            loadState();
+        };
+
+        const handleModeUpdate = () => {
+            loadState();
+        };
+
+        window.addEventListener("ai-models-catalog-updated", handleModelsUpdate);
+        window.addEventListener("ai-selected-model-updated", handleModelsUpdate);
+        window.addEventListener("ai-active-mode-updated", handleModeUpdate);
+
+        return () => {
+            window.removeEventListener(
+                "ai-models-catalog-updated",
+                handleModelsUpdate
+            );
+            window.removeEventListener(
+                "ai-selected-model-updated",
+                handleModelsUpdate
+            );
+            window.removeEventListener(
+                "ai-active-mode-updated",
+                handleModeUpdate
+            );
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent) => {
+            if (!rootRef.current) return;
+
+            if (!rootRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+                setStep("providers");
+                setSelectedProvider("");
             }
-            sendMessage();
-        }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+
+        return () => {
+            document.removeEventListener("mousedown", handleOutsideClick);
+        };
+    }, []);
+
+    const openMenu = () => {
+        if (!visibleCatalog.length) return;
+
+        setIsOpen((prev) => !prev);
+        setStep("providers");
+        setSelectedProvider("");
     };
+
+    const chooseProvider = (provider: string) => {
+        setSelectedProvider(provider);
+        setStep("models");
+    };
+
+    const chooseModel = (modelId: string) => {
+        setSelectedModelId(modelId);
+        localStorage.setItem(getSelectedModelKey(), modelId);
+        window.dispatchEvent(new Event("ai-selected-model-updated"));
+        setIsOpen(false);
+        setStep("providers");
+        setSelectedProvider("");
+    };
+
+    const emptyTitle =
+        headerMode === "image"
+            ? "Нет доступных image-моделей"
+            : "Нет доступных текстовых моделей";
+
+    const emptySubtitle =
+        headerMode === "image"
+            ? "Добавь image-модели в каталог"
+            : "Добавь text-модели в каталог";
 
     return (
-        <div className="relative z-2 mx-auto w-full max-w-258 p-5 bg-gray-0 rounded-xl border border-gray-50 shadow-[0_3rem_6.25rem_0_rgba(17,12,46,0.15)] max-md:p-4">
-            {generateVideo && (
-                <CloseLine
-                    title="Recreate Video"
-                    onClose={() => setGenerateVideo(false)}
-                />
-            )}
-
-            <div className="relative z-2 p-5 bg-gray-0 rounded-xl border border-gray-50 shadow-[0_3rem_6.25rem_0_rgba(17,12,46,0.15)] max-md:p-4">
-                {attachImage && (
-                    <PreviewImage onClose={() => setAttachImage(false)} />
-                )}
-
-                {attachFile && (
-                    <PreviewFile onClose={() => setAttachFile(false)} />
-                )}
-
-                {generateVideo && <RecreateVideo />}
-
-                <div className="relative pl-8 text-0">
-                    <Icon
-                        className="absolute top-1 left-0 fill-primary-200"
-                        name="chat-ai-fill"
-                    />
-
-                    <TextareaAutosize
-                        className="w-full min-h-[24px] text-body-md leading-6 text-gray-900 outline-none resize-none placeholder:text-gray-500 overflow-y-auto"
-                        minRows={1}
-                        maxRows={5}
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Напиши вопрос..."
+        <div className="relative" ref={rootRef}>
+            <button
+                type="button"
+                onClick={openMenu}
+                className="flex h-10 min-w-[180px] items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] transition-colors hover:bg-gray-25"
+            >
+                <div className="relative shrink-0">
+                    <Image
+                        className="w-6 opacity-100"
+                        src="/images/logo-circle.png"
+                        width={24}
+                        height={24}
+                        alt=""
                     />
                 </div>
 
-                <div className="flex items-center gap-2 mt-3">
-                    <div className="flex items-center gap-2 mr-auto">
-                        <ChatFeatures
-                            onGenerateVideo={() => setGenerateVideo(true)}
-                        />
-                        {generateVideo && <Time />}
-                        <Attach
-                            onAttachImage={() => setAttachImage(true)}
-                            onAttachFile={() => setAttachFile(true)}
-                        />
-                        <Language />
+                <div className="min-w-0 flex-1 text-left">
+                    <div className="truncate text-body-sm font-medium text-primary-300">
+                        {currentModel?.display_name || emptyTitle}
                     </div>
-
-                    <Audio />
-                    <Voice />
-
-                    <Button
-                        className="w-8 !px-0"
-                        icon={isSending ? "close" : "arrow"}
-                        isPrimary
-                        isXSmall
-                        onClick={isSending ? handleStop : sendMessage}
-                        disabled={!isSending && !message.trim()}
-                    />
+                    <div className="truncate text-[12px] leading-4 text-gray-500">
+                        {currentModel?.provider || emptySubtitle}
+                    </div>
                 </div>
-            </div>
+
+                <Icon
+                    className={`shrink-0 fill-gray-500 transition-transform ${
+                        isOpen ? "rotate-180" : ""
+                    }`}
+                    name="chevron"
+                />
+            </button>
+
+            {isOpen && (
+                <div className="absolute right-0 top-[calc(100%+12px)] z-30 w-[340px] rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+                    {step === "providers" && (
+                        <div>
+                            <div className="px-3 pb-2 pt-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                {headerMode === "image"
+                                    ? "Компании — картинки"
+                                    : "Компании — текст"}
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                {groupedProviders.map((group) => (
+                                    <button
+                                        key={group.provider}
+                                        type="button"
+                                        onClick={() => chooseProvider(group.provider)}
+                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-gray-50"
+                                    >
+                                        <div className="relative shrink-0">
+                                            <Image
+                                                className="w-6 opacity-100"
+                                                src="/images/logo-circle.png"
+                                                width={24}
+                                                height={24}
+                                                alt=""
+                                            />
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-body-sm font-medium text-primary-300">
+                                                {group.provider}
+                                            </div>
+                                            <div className="truncate text-[12px] leading-4 text-gray-500">
+                                                {group.items.length} моделей
+                                            </div>
+                                        </div>
+
+                                        <Icon
+                                            className="shrink-0 -rotate-90 fill-gray-500"
+                                            name="chevron"
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {step === "models" && (
+                        <div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setStep("providers");
+                                    setSelectedProvider("");
+                                }}
+                                className="mb-1 flex items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                            >
+                                <Icon
+                                    className="shrink-0 rotate-90 fill-gray-500"
+                                    name="chevron"
+                                />
+                                <span className="text-[12px] font-medium text-gray-500">
+                                    Назад
+                                </span>
+                            </button>
+
+                            <div className="px-3 pb-2 pt-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                {selectedProvider}
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                {currentProviderModels.map((item) => {
+                                    const isSelected =
+                                        item.model_id === currentModel?.model_id;
+
+                                    return (
+                                        <button
+                                            key={item.model_id}
+                                            type="button"
+                                            onClick={() =>
+                                                chooseModel(item.model_id)
+                                            }
+                                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-gray-50 ${
+                                                isSelected ? "bg-gray-50" : ""
+                                            }`}
+                                        >
+                                            <div className="relative shrink-0">
+                                                <Image
+                                                    className="w-6 opacity-100"
+                                                    src="/images/logo-circle.png"
+                                                    width={24}
+                                                    height={24}
+                                                    alt=""
+                                                />
+                                            </div>
+
+                                            <div className="min-w-0 flex-1">
+                                                <div className="truncate text-body-sm font-medium text-primary-300">
+                                                    {item.display_name || item.model_id}
+                                                </div>
+                                                <div className="truncate text-[12px] leading-4 text-gray-500">
+                                                    {item.provider || "Other"}
+                                                </div>
+                                            </div>
+
+                                            {isSelected && (
+                                                <div className="rounded-full bg-primary-0 px-2 py-1 text-[11px] font-medium text-primary-300">
+                                                    Выбрано
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
 
-export default PanelMessage;
+export default ChatVersions;
