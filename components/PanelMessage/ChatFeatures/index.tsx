@@ -30,7 +30,7 @@ const ChatFeatures = ({
             },
             {
                 key: "image" as ChatFeatureMode,
-                name: "Generate Image",
+                name: "Создать изображение",
                 icon: "generate-image",
                 upgraded: true,
                 onClick: onSelectImage,
