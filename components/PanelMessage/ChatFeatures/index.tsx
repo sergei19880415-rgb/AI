@@ -50,35 +50,37 @@ const ChatFeatures = ({
                 <Icon className="size-5 fill-primary-300" name={activeFeature.icon} />
             </div>
 
-            <Menu>
-                <MenuButton className="group flex h-12 w-full items-center justify-center transition-colors hover:bg-gray-25">
-                    <Icon className="fill-gray-500" name="plus" />
-                </MenuButton>
+            <div className="mt-1">
+                <Menu>
+                    <MenuButton className="group flex h-12 w-full items-center justify-center transition-colors hover:bg-gray-25">
+                        <Icon className="fill-gray-500" name="plus" />
+                    </MenuButton>
 
-                <MenuItems
-                    className="z-20 flex w-56 origin-bottom flex-col overflow-hidden rounded-xl border border-black/8 bg-gray-0 outline-0 shadow-[0_0.0625rem_0.25rem_0_rgba(0,0,0,0.16)] transition duration-200 ease-out [--anchor-gap:0.5rem] data-closed:scale-95 data-closed:opacity-0"
-                    anchor="top start"
-                    transition
-                    modal={false}
-                >
-                    {features.map((feature) => (
-                        <MenuItem
-                            className="group flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-25"
-                            key={feature.key}
-                            onClick={feature.onClick}
-                            as="button"
-                        >
-                            <Icon
-                                className="fill-gray-500 transition-colors group-hover:fill-gray-900"
-                                name={feature.icon}
-                            />
-                            <div className="text-body-xs font-medium text-gray-800">
-                                {feature.name}
-                            </div>
-                        </MenuItem>
-                    ))}
-                </MenuItems>
-            </Menu>
+                    <MenuItems
+                        className="z-20 flex w-56 origin-bottom flex-col overflow-hidden rounded-xl border border-black/8 bg-gray-0 outline-0 shadow-[0_0.0625rem_0.25rem_0_rgba(0,0,0,0.16)] transition duration-200 ease-out [--anchor-gap:0.5rem] data-closed:scale-95 data-closed:opacity-0"
+                        anchor="top start"
+                        transition
+                        modal={false}
+                    >
+                        {features.map((feature) => (
+                            <MenuItem
+                                className="group flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-25"
+                                key={feature.key}
+                                onClick={feature.onClick}
+                                as="button"
+                            >
+                                <Icon
+                                    className="fill-gray-500 transition-colors group-hover:fill-gray-900"
+                                    name={feature.icon}
+                                />
+                                <div className="text-body-xs font-medium text-gray-800">
+                                    {feature.name}
+                                </div>
+                            </MenuItem>
+                        ))}
+                    </MenuItems>
+                </Menu>
+            </div>
         </div>
     );
 };

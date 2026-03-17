@@ -10,30 +10,38 @@ type Props = {
     children: React.ReactNode;
 };
 
+const getModelLogoSrc = (modelLabel?: string) => {
+    const label = String(modelLabel || "").trim().toLowerCase();
+
+    if (label.includes("gpt") || label.includes("openai")) {
+        return "/images/models/openai.svg";
+    }
+
+    if (label.includes("claude") || label.includes("anthropic")) {
+        return "/images/models/claude-color.svg";
+    }
+
+    if (label.includes("gemini") || label.includes("google")) {
+        return "/images/models/gemini-color.svg";
+    }
+
+    if (label.includes("grok") || label.includes("xai") || label.includes("x.ai")) {
+        return "/images/models/grok.svg";
+    }
+
+    if (label.includes("sonar") || label.includes("perplexity")) {
+        return "/images/models/perplexity.svg";
+    }
+
+    return "/images/models/openai.svg";
+};
+
 const Answer = ({ image, video, modelLabel, children }: Props) => {
     const actions = [
         {
             icon: "copy",
             onClick: () => {
                 console.log("Copy");
-            },
-        },
-        {
-            icon: "like",
-            onClick: () => {
-                console.log("Like");
-            },
-        },
-        {
-            icon: "dislike",
-            onClick: () => {
-                console.log("Dislike");
-            },
-        },
-        {
-            icon: "upload",
-            onClick: () => {
-                console.log("Upload");
             },
         },
         {
@@ -68,10 +76,10 @@ const Answer = ({ image, video, modelLabel, children }: Props) => {
                 <div className="relative flex shrink-0 after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:w-3.5 after:h-0.5 after:bg-[#8A44F4]/40 after:rounded-[100%] after:blur-[0.125rem]">
                     <Image
                         className="w-4 opacity-100"
-                        src="/images/logo-circle.png"
+                        src={getModelLogoSrc(modelLabel)}
                         width={16}
                         height={16}
-                        alt=""
+                        alt={modelLabel || "Model logo"}
                     />
                 </div>
 
