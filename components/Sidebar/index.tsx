@@ -149,7 +149,13 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
 
                 {!isCollapsed && (
                     <>
+                        <div className="px-5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                            Проекты
+                        </div>
                         <Space />
+                        <div className="px-5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                            Список чатов
+                        </div>
                         <RecentChats />
                     </>
                 )}

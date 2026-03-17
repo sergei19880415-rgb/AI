@@ -10,6 +10,7 @@ import Icon from "@/components/Icon";
 type Props = {
     classWrapper?: string;
     title?: string;
+    onRenameTitle?: () => void;
     archived?: boolean;
     hidePanelMessage?: boolean;
     children: React.ReactNode;
@@ -18,6 +19,7 @@ type Props = {
 const Layout = ({
     classWrapper,
     title,
+    onRenameTitle,
     archived,
     hidePanelMessage,
     children,
@@ -37,6 +39,7 @@ const Layout = ({
             <div className="relative flex h-[calc(100svh-1rem)] min-w-0 flex-1 flex-col rounded-2xl border border-gray-100 bg-gray-0 max-md:h-[calc(100svh-4rem)] max-md:rounded-none max-md:border-none max-md:bg-transparent">
                 <Header
                     title={title}
+                    onRenameTitle={onRenameTitle}
                     onOpenSidebar={() => setSidebarVisible(true)}
                 />
 

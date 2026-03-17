@@ -257,15 +257,15 @@ const RecentChats = () => {
         return (
             <div
                 key={item.id}
-                className={`group relative flex items-center gap-1 rounded-xl border transition-colors ${
+                className={`group relative flex items-center gap-1 rounded-lg border transition-colors ${
                     isActive
-                        ? "border-[#E9D5FF] bg-[#F8F3FF] shadow-[inset_3px_0_0_0_#8B5CF6]"
+                        ? "border-primary-200 bg-primary-0/60"
                         : "border-transparent hover:bg-gray-50"
                 }`}
             >
                 <Link
                     href={`/chat?id=${item.id}`}
-                    className="min-w-0 flex-1 px-3 py-2"
+                    className="min-w-0 flex-1 px-3 py-1.5"
                 >
                     <div className="flex items-center gap-2">
                         {item.isPinned && (
@@ -279,7 +279,7 @@ const RecentChats = () => {
 
                         <div className="min-w-0 flex-1">
                             <div
-                                className={`truncate text-body-sm ${
+                                className={`truncate text-[13px] ${
                                     isActive
                                         ? "font-medium text-gray-900"
                                         : "text-gray-700"
@@ -362,11 +362,7 @@ const RecentChats = () => {
     };
 
     return (
-        <div className="px-3 py-3">
-            <div className="mb-1.5 pl-2 text-[11px] font-medium tracking-wide text-gray-400">
-                Ваши чаты
-            </div>
-
+        <div className="px-3 py-2">
             <div className="flex flex-col gap-1">
                 {visibleSessions.length === 0 && (
                     <div className="px-3 py-2 text-body-sm text-gray-400">
