@@ -50,7 +50,7 @@ const ChatFeatures = ({
                 <Icon className="size-5 fill-primary-300" name={activeFeature.icon} />
             </div>
 
-            <div className="mt-1">
+            <div className="mt-2">
                 <Menu>
                     <MenuButton className="group flex h-12 w-full items-center justify-center transition-colors hover:bg-gray-25">
                         <Icon className="fill-gray-500" name="plus" />

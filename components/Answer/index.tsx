@@ -85,7 +85,7 @@ const Answer = ({ image, video, modelLabel, children }: Props) => {
 
                 <div className="min-w-0">
                     {children && (
-                        <div className="content p-3 rounded-3xl rounded-tl-none bg-gray-50 max-md:rounded-2xl max-md:rounded-tl-none">
+                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[13px] leading-[19px] text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
                             {isHtmlImageAnswer ? (
                                 <div
                                     dangerouslySetInnerHTML={{
