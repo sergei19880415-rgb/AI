@@ -34,6 +34,8 @@ type ModelCatalogItem = {
     is_active?: boolean;
 };
 
+type UiMode = "chat" | "image" | "video";
+
 const getModelLogoSrc = (modelId?: string, provider?: string): string => {
     const id = String(modelId || "").trim().toLowerCase();
     const prov = String(provider || "").trim().toLowerCase();
@@ -89,6 +91,10 @@ const getSelectedModelsKey = () => {
 
 const getParallelCountKey = () => {
     return `ai_parallel_count_${getUserEmail()}`;
+};
+
+const getUiModeKey = () => {
+    return `ai_ui_mode_${getUserEmail()}`;
 };
 
 const normalizePositiveInt = (value: unknown, fallback: number) => {
@@ -203,12 +209,25 @@ const getGridClassName = (count: number) => {
     return "grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3";
 };
 
+const getUiMode = (): UiMode => {
+    const raw = (localStorage.getItem(getUiModeKey()) || "chat")
+        .trim()
+        .toLowerCase();
+
+    if (raw === "image") return "image";
+    if (raw === "video") return "video";
+    return "chat";
+};
+
 const ChatPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const sessionIdFromUrl = searchParams.get("id");
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [sessionTitle, setSessionTitle] = useState("Новый чат");
+    const [uiMode, setUiMode] = useState<UiMode>("chat");
+    const [parallelCount, setParallelCount] = useState(1);
     const [visibleModelIds, setVisibleModelIds] = useState<string[]>([]);
     const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
 
@@ -216,6 +235,11 @@ const ChatPage = () => {
         const loadState = () => {
             const session = ensureSession(sessionIdFromUrl);
             setMessages(session.messages || []);
+            setSessionTitle(session.title || "Новый чат");
+            setUiMode(getUiMode());
+            setParallelCount(
+                normalizePositiveInt(localStorage.getItem(getParallelCountKey()), 1)
+            );
             setVisibleModelIds(getVisibleModelIds());
             setModelsCatalog(getModelsCatalog());
 
@@ -231,6 +255,7 @@ const ChatPage = () => {
         window.addEventListener("ai-selected-models-updated", loadState);
         window.addEventListener("ai-parallel-settings-updated", loadState);
         window.addEventListener("ai-models-catalog-updated", loadState);
+        window.addEventListener("ai-active-mode-updated", loadState);
 
         return () => {
             window.removeEventListener("ai-chat-updated", loadState);
@@ -241,6 +266,7 @@ const ChatPage = () => {
                 loadState
             );
             window.removeEventListener("ai-models-catalog-updated", loadState);
+            window.removeEventListener("ai-active-mode-updated", loadState);
         };
     }, [router, sessionIdFromUrl]);
 
@@ -298,20 +324,72 @@ const ChatPage = () => {
         });
     };
 
+    const windowCount =
+        uiMode === "video"
+            ? 1
+            : uiMode === "image"
+            ? Math.min(Math.max(parallelCount, 1), 2)
+            : Math.max(modelWindows.length, parallelCount, 1);
+
+    const chatWindows = Array.from({ length: windowCount }, (_, index) => {
+        return (
+            modelWindows[index] || {
+                modelId: "",
+                displayName: `Окно ${index + 1}`,
+                provider: "AI",
+            }
+        );
+    });
+
+    const renderEmptyWorkspace = (label: string) => (
+        <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-25/60 px-4 text-center">
+            <div className="text-[13px] font-medium text-gray-700">{label}</div>
+            <div className="mt-1 text-[12px] text-gray-500">
+                Результат появится в этом окне
+            </div>
+        </div>
+    );
+
+    const renameCurrentChat = () => {
+        const session = ensureSession(sessionIdFromUrl);
+        const nextTitle = window.prompt(
+            "Новое название чата",
+            session.title || "Новый чат"
+        );
+
+        if (nextTitle === null) return;
+
+        const cleanTitle = nextTitle.trim();
+        if (!cleanTitle) return;
+
+        const sessions = readSessions().map((item) =>
+            item.id === session.id
+                ? {
+                      ...item,
+                      title: cleanTitle,
+                      updatedAt: Date.now(),
+                  }
+                : item
+        );
+
+        saveSessions(sessions);
+        setSessionTitle(cleanTitle);
+    };
+
     return (
-        <Layout classWrapper="flex h-full min-h-0 flex-col overflow-hidden px-3 pb-2 pt-2 md:px-4 md:pb-3 md:pt-3">
-            {messages.length === 0 ? (
-                <div className="flex min-h-0 flex-1 items-center justify-center text-center text-[14px] text-gray-500 md:text-[15px]">
-                    Напиши вопрос ниже, и здесь появится диалог
-                </div>
-            ) : (
-                <div className="flex min-h-0 flex-1 flex-col">
-                    <div
-                        className={`grid h-full min-h-0 auto-rows-fr gap-3 ${getGridClassName(
-                            modelWindows.length
-                        )}`}
-                    >
-                        {modelWindows.map((windowItem, windowIndex) => {
+        <Layout
+            title={sessionTitle}
+            onRenameTitle={renameCurrentChat}
+            classWrapper="flex h-full min-h-0 flex-col overflow-hidden px-3 pb-2 pt-2 md:px-4 md:pb-3 md:pt-3"
+        >
+            <div className="flex min-h-0 flex-1 flex-col">
+                <div
+                    className={`grid h-full min-h-0 auto-rows-fr gap-3 ${getGridClassName(
+                        windowCount
+                    )}`}
+                >
+                    {uiMode === "chat" &&
+                        chatWindows.map((windowItem, windowIndex) => {
                             const windowMessages = getWindowMessages(
                                 windowItem.modelId,
                                 windowIndex
@@ -354,10 +432,9 @@ const ChatPage = () => {
                                     <div className="min-h-0 flex-1 overflow-auto p-3">
                                         <div className="flex flex-col gap-3">
                                             {windowMessages.length === 0 ? (
-                                                <div className="text-[12px] text-gray-400">
-                                                    Здесь появится ответ этой
-                                                    модели
-                                                </div>
+                                                renderEmptyWorkspace(
+                                                    "Здесь появится ответ этой модели"
+                                                )
                                             ) : (
                                                 windowMessages.map((item) => (
                                                     <React.Fragment
@@ -380,9 +457,26 @@ const ChatPage = () => {
                                 </div>
                             );
                         })}
-                    </div>
+
+                    {uiMode === "image" &&
+                        Array.from({ length: windowCount }, (_, index) => (
+                            <div
+                                key={`image-window-${index}`}
+                                className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white p-3"
+                            >
+                                {renderEmptyWorkspace(
+                                    `Окно предпросмотра изображения ${index + 1}`
+                                )}
+                            </div>
+                        ))}
+
+                    {uiMode === "video" && (
+                        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white p-3">
+                            {renderEmptyWorkspace("Окно предпросмотра видео")}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </Layout>
     );
 };

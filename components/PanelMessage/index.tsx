@@ -106,6 +106,10 @@ const getActiveModeKey = () => {
     return `ai_active_mode_${getUserEmail()}`;
 };
 
+const getUiModeKey = () => {
+    return `ai_ui_mode_${getUserEmail()}`;
+};
+
 const normalizePositiveInt = (value: unknown, fallback: number) => {
     const num = Number(value);
     if (!Number.isFinite(num) || num < 1) return fallback;
@@ -383,8 +387,15 @@ const PanelMessage = () => {
 
     useEffect(() => {
         const headerMode = activeMode === "image" ? "image" : "text";
+        const uiMode =
+            activeMode === "image"
+                ? "image"
+                : activeMode === "video"
+                ? "video"
+                : "chat";
 
         localStorage.setItem(getActiveModeKey(), headerMode);
+        localStorage.setItem(getUiModeKey(), uiMode);
         window.dispatchEvent(new Event("ai-active-mode-updated"));
     }, [activeMode]);
 
@@ -769,10 +780,6 @@ const PanelMessage = () => {
                                 setActiveMode("chat");
                                 setGenerateVideo(false);
                             }}
-                            onSelectSearch={() => {
-                                setActiveMode("search");
-                                setGenerateVideo(false);
-                            }}
                             onSelectImage={() => {
                                 setActiveMode("image");
                                 setGenerateVideo(false);
@@ -784,7 +791,7 @@ const PanelMessage = () => {
                         />
                     </div>
 
-                    <div className="min-w-0 flex-1 rounded-xl border border-gray-100 bg-white px-4 py-1 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)]">
+                    <div className="min-w-0 flex-1 rounded-xl border border-gray-100 bg-white px-4 py-2 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)]">
                         {generateVideo && (
                             <div className="mb-3">
                                 <CloseLine
@@ -817,7 +824,7 @@ const PanelMessage = () => {
                             />
                         </div>
 
-                        <div className="mt-1 flex items-center justify-end gap-2">
+                        <div className="mt-2 flex items-center justify-end gap-2">
                             {generateVideo && <Time />}
 
                             <div className="flex items-center gap-2 self-end">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import Icon from "@/components/Icon";
 
@@ -7,7 +7,6 @@ type ChatFeatureMode = "chat" | "search" | "image" | "video";
 type Props = {
     activeMode: ChatFeatureMode;
     onSelectChat: () => void;
-    onSelectSearch: () => void;
     onSelectImage: () => void;
     onGenerateVideo: () => void;
 };
@@ -15,7 +14,6 @@ type Props = {
 const ChatFeatures = ({
     activeMode,
     onSelectChat,
-    onSelectSearch,
     onSelectImage,
     onGenerateVideo,
 }: Props) => {
@@ -23,86 +21,65 @@ const ChatFeatures = ({
         () => [
             {
                 key: "chat" as ChatFeatureMode,
-                name: "Chat",
+                name: "Чат",
                 icon: "chat",
-                upgraded: true,
                 onClick: onSelectChat,
             },
             {
                 key: "image" as ChatFeatureMode,
                 name: "Создать изображение",
                 icon: "generate-image",
-                upgraded: true,
                 onClick: onSelectImage,
             },
             {
                 key: "video" as ChatFeatureMode,
-                name: "Generate Video",
+                name: "Создать видео",
                 icon: "generate-video",
-                upgraded: false,
                 onClick: onGenerateVideo,
             },
         ],
-        [onSelectChat, onSelectImage, onGenerateVideo]
+        [onGenerateVideo, onSelectChat, onSelectImage]
     );
 
-    const getIndexByMode = (mode: ChatFeatureMode) => {
-        const index = features.findIndex((item) => item.key === mode);
-        return index >= 0 ? index : 0;
-    };
-
-    const [activeFeature, setActiveFeature] = useState(getIndexByMode(activeMode));
-
-    useEffect(() => {
-        setActiveFeature(getIndexByMode(activeMode));
-    }, [activeMode, features]);
+    const activeFeature =
+        features.find((item) => item.key === activeMode) || features[0];
 
     return (
-        <Menu>
-            <MenuButton className="group flex items-center gap-2 h-8 px-4 border border-gray-100 rounded-lg shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] text-body-xs font-medium outline-0 transition-colors hover:bg-gray-25 max-md:gap-1 max-md:px-2">
-                <Icon
-                    className="fill-gray-500"
-                    name={features[activeFeature].icon}
-                />
-                {features[activeFeature].name}
-                <Icon
-                    className="fill-gray-500 transition-transform group-[[data-open]]:rotate-180"
-                    name="chevron"
-                />
-            </MenuButton>
+        <div className="flex h-full min-h-[108px] w-[56px] flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)]">
+            <div className="flex flex-1 items-center justify-center border-b border-gray-100">
+                <Icon className="size-5 fill-primary-300" name={activeFeature.icon} />
+            </div>
 
-            <MenuItems
-                className="flex [--anchor-gap:0.5rem] origin-top z-20 flex-col w-59.5 bg-gray-0 border border-black/8 rounded-lg rounded-bl-none outline-0 shadow-[0_0.0625rem_0.25rem_0_rgba(0,0,0,0.16)] transition duration-200 ease-out overflow-hidden data-closed:scale-95 data-closed:opacity-0"
-                anchor="bottom start"
-                transition
-                modal={false}
-            >
-                {features.map((feature, index) => (
-                    <MenuItem
-                        className="group flex items-center gap-2 px-4 py-3 text-left cursor-pointer transition-colors hover:bg-gray-25"
-                        key={feature.key}
-                        onClick={() => {
-                            setActiveFeature(index);
-                            feature.onClick();
-                        }}
-                        as="button"
-                    >
-                        <Icon
-                            className="fill-gray-500 transition-colors group-hover:fill-gray-900"
-                            name={feature.icon}
-                        />
-                        <div className="text-body-xs font-medium">
-                            {feature.name}
-                        </div>
-                        {!feature.upgraded && (
-                            <div className="ml-auto px-2 py-1 bg-primary-0 rounded-full text-body-xs font-medium text-primary-300">
-                                Upgrade Pro
+            <Menu>
+                <MenuButton className="group flex h-12 w-full items-center justify-center transition-colors hover:bg-gray-25">
+                    <Icon className="fill-gray-500" name="plus" />
+                </MenuButton>
+
+                <MenuItems
+                    className="z-20 flex w-56 origin-bottom flex-col overflow-hidden rounded-xl border border-black/8 bg-gray-0 outline-0 shadow-[0_0.0625rem_0.25rem_0_rgba(0,0,0,0.16)] transition duration-200 ease-out [--anchor-gap:0.5rem] data-closed:scale-95 data-closed:opacity-0"
+                    anchor="top start"
+                    transition
+                    modal={false}
+                >
+                    {features.map((feature) => (
+                        <MenuItem
+                            className="group flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-25"
+                            key={feature.key}
+                            onClick={feature.onClick}
+                            as="button"
+                        >
+                            <Icon
+                                className="fill-gray-500 transition-colors group-hover:fill-gray-900"
+                                name={feature.icon}
+                            />
+                            <div className="text-body-xs font-medium text-gray-800">
+                                {feature.name}
                             </div>
-                        )}
-                    </MenuItem>
-                ))}
-            </MenuItems>
-        </Menu>
+                        </MenuItem>
+                    ))}
+                </MenuItems>
+            </Menu>
+        </div>
     );
 };
 

@@ -5,6 +5,7 @@ import Image from "@/components/Image";
 import Icon from "@/components/Icon";
 
 type ModelMode = "text" | "image";
+type UiMode = "chat" | "image" | "video";
 
 type ModelCatalogItem = {
     model_id: string;
@@ -73,6 +74,10 @@ const getActiveModeKey = () => {
     return `ai_active_mode_${getUserEmail()}`;
 };
 
+const getUiModeKey = () => {
+    return `ai_ui_mode_${getUserEmail()}`;
+};
+
 const normalizePositiveInt = (value: unknown, fallback: number) => {
     const num = Number(value);
     if (!Number.isFinite(num) || num < 1) return fallback;
@@ -105,10 +110,34 @@ const getModelsCatalog = (): ModelCatalogItem[] => {
     }
 };
 
+const getUiMode = (): UiMode => {
+    const raw = (localStorage.getItem(getUiModeKey()) || "chat")
+        .trim()
+        .toLowerCase();
+
+    if (raw === "image") return "image";
+    if (raw === "video") return "video";
+    return "chat";
+};
+
 const getAllowedWindowCounts = (
+    uiMode: UiMode,
     maxParallelModels: number,
     visibleModelsCount: number
 ) => {
+    if (uiMode === "video") {
+        return [1];
+    }
+
+    if (uiMode === "image") {
+        const effectiveMax = Math.max(
+            1,
+            Math.min(2, maxParallelModels, Math.max(visibleModelsCount, 1))
+        );
+
+        return WINDOW_OPTIONS.filter((value) => value <= effectiveMax);
+    }
+
     const effectiveMax = Math.max(
         1,
         Math.min(maxParallelModels, Math.max(visibleModelsCount, 1))
@@ -120,11 +149,13 @@ const getAllowedWindowCounts = (
 };
 
 const getSafeParallelCount = (
+    uiMode: UiMode,
     savedValue: unknown,
     maxParallelModels: number,
     visibleModelsCount: number
 ) => {
     const allowedCounts = getAllowedWindowCounts(
+        uiMode,
         maxParallelModels,
         visibleModelsCount
     );
@@ -216,7 +247,7 @@ const WindowPattern = ({
     count: number;
     active: boolean;
 }) => {
-    const columns = count === 1 ? 1 : count === 2 ? 2 : count === 4 ? 2 : 3;
+    const columns = count === 1 ? 1 : count === 2 ? 2 : count <= 4 ? 2 : 3;
 
     const items = Array.from({ length: count }, (_, index) => index);
 
@@ -231,7 +262,7 @@ const WindowPattern = ({
                 <span
                     key={item}
                     className={`block h-[6px] w-[6px] rounded-[2px] ${
-                        active ? "bg-primary-300" : "bg-gray-300"
+                        active ? "bg-white" : "bg-gray-300/90"
                     }`}
                 />
             ))}
@@ -243,6 +274,7 @@ const ChatVersions = () => {
     const rootRef = useRef<HTMLDivElement | null>(null);
 
     const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
+    const [uiMode, setUiMode] = useState<UiMode>("chat");
     const [activeMode, setActiveMode] = useState<ModelMode>("text");
     const [maxParallelModels, setMaxParallelModels] = useState(1);
     const [parallelCount, setParallelCount] = useState(1);
@@ -260,8 +292,12 @@ const ChatVersions = () => {
     }, [visibleCatalog]);
 
     const allowedWindowCounts = useMemo(() => {
-        return getAllowedWindowCounts(maxParallelModels, visibleCatalog.length);
-    }, [maxParallelModels, visibleCatalog.length]);
+        return getAllowedWindowCounts(
+            uiMode,
+            maxParallelModels,
+            visibleCatalog.length
+        );
+    }, [maxParallelModels, uiMode, visibleCatalog.length]);
 
     const currentSlots = useMemo(() => {
         return Array.from({ length: parallelCount }, (_, index) => {
@@ -292,6 +328,7 @@ const ChatVersions = () => {
         );
 
         const normalizedParallelCount = getSafeParallelCount(
+            uiMode,
             nextParallelCount,
             maxParallelModels,
             nextVisibleCatalog.length
@@ -336,6 +373,7 @@ const ChatVersions = () => {
     const loadState = () => {
         const catalog = getModelsCatalog();
         const nextMode = getHeaderMode();
+        const nextUiMode = getUiMode();
         const maxParallel = normalizePositiveInt(
             localStorage.getItem("ai_max_parallel_models"),
             1
@@ -346,6 +384,7 @@ const ChatVersions = () => {
         );
 
         const savedParallelCount = getSafeParallelCount(
+            nextUiMode,
             localStorage.getItem(getParallelCountKey()),
             maxParallel,
             visibleForMode.length
@@ -384,6 +423,7 @@ const ChatVersions = () => {
         );
 
         setModelsCatalog(catalog);
+        setUiMode(nextUiMode);
         setActiveMode(nextMode);
         setMaxParallelModels(maxParallel);
         setParallelCount(savedParallelCount);
@@ -505,8 +545,8 @@ const ChatVersions = () => {
                             onClick={() => handleParallelCountChange(count)}
                             className={`flex h-9 min-w-[40px] items-center justify-center gap-2 rounded-lg px-2 transition-colors ${
                                 isActive
-                                    ? "bg-primary-0 text-primary-300"
-                                    : "text-gray-500 hover:bg-gray-50"
+                                    ? "bg-primary-300 text-white shadow-[0_0.375rem_0.875rem_rgba(123,58,237,0.22)]"
+                                    : "text-gray-600 hover:bg-gray-50"
                             }`}
                             title={`${count} окон`}
                         >

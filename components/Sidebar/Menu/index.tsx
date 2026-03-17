@@ -83,6 +83,11 @@ const Menu = ({ isCollapsed }: Props) => {
                     isCollapsed ? "px-1.5" : "px-3"
                 }`}
             >
+                {!isCollapsed && (
+                    <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                        Основное
+                    </div>
+                )}
                 <div className="flex flex-col gap-0.5">
                     {items.map((item, index) =>
                         item.href ? (
