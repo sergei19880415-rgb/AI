@@ -45,15 +45,19 @@ const ChatFeatures = ({
         features.find((item) => item.key === activeMode) || features[0];
 
     return (
-        <div className="flex h-full min-h-[108px] w-[56px] flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)]">
-            <div className="mb-2 flex flex-1 items-center justify-center border-b border-gray-100/60">
+        <div className="flex h-full min-h-[108px] w-[56px] flex-col justify-between">
+            <button
+                type="button"
+                className="group flex h-12 w-full items-center justify-center rounded-xl border border-gray-100 bg-white shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] transition-colors hover:bg-gray-25"
+                aria-label={activeFeature.name}
+            >
                 <Icon className="size-5 fill-primary-300" name={activeFeature.icon} />
-            </div>
+            </button>
 
-            <div>
+            <div className="pt-1.5">
                 <Menu>
-                    <MenuButton className="group flex h-12 w-full items-center justify-center transition-colors hover:bg-gray-25">
-                        <Icon className="fill-gray-500" name="plus" />
+                    <MenuButton className="group flex h-12 w-full items-center justify-center rounded-xl border border-gray-100 bg-white shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] transition-colors hover:bg-gray-25">
+                        <Icon className="fill-gray-500 transition-colors group-hover:fill-gray-900" name="plus" />
                     </MenuButton>
 
                     <MenuItems

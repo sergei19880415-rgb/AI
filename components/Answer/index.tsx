@@ -6,12 +6,46 @@ import GenerateVideo from "./GenerateVideo";
 type Props = {
     image?: string;
     video?: string;
+    modelId?: string;
+    modelProvider?: string;
     modelLabel?: string;
     children: React.ReactNode;
 };
 
-const getModelLogoSrc = (modelLabel?: string) => {
+const getModelLogoSrc = (
+    modelLabel?: string,
+    modelId?: string,
+    modelProvider?: string
+) => {
     const label = String(modelLabel || "").trim().toLowerCase();
+    const id = String(modelId || "").trim().toLowerCase();
+    const provider = String(modelProvider || "").trim().toLowerCase();
+
+    if (
+        provider.includes("openai") ||
+        id.includes("gpt") ||
+        id.includes("o1") ||
+        id.includes("o3") ||
+        id.includes("o4")
+    ) {
+        return "/images/models/openai.svg";
+    }
+
+    if (provider.includes("anthropic") || id.includes("claude")) {
+        return "/images/models/claude-color.svg";
+    }
+
+    if (provider.includes("google") || id.includes("gemini")) {
+        return "/images/models/gemini-color.svg";
+    }
+
+    if (provider.includes("xai") || provider.includes("x.ai") || id.includes("grok")) {
+        return "/images/models/grok.svg";
+    }
+
+    if (provider.includes("perplexity") || id.includes("perplexity")) {
+        return "/images/models/perplexity.svg";
+    }
 
     if (label.includes("gpt") || label.includes("openai")) {
         return "/images/models/openai.svg";
@@ -36,7 +70,14 @@ const getModelLogoSrc = (modelLabel?: string) => {
     return "/images/models/openai.svg";
 };
 
-const Answer = ({ image, video, modelLabel, children }: Props) => {
+const Answer = ({
+    image,
+    video,
+    modelId,
+    modelProvider,
+    modelLabel,
+    children,
+}: Props) => {
     const actions = [
         {
             icon: "copy",
@@ -74,18 +115,18 @@ const Answer = ({ image, video, modelLabel, children }: Props) => {
         <div>
             <div className="flex items-start gap-2">
                 <div className="relative flex shrink-0 after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:w-3.5 after:h-0.5 after:bg-[#8A44F4]/40 after:rounded-[100%] after:blur-[0.125rem]">
-                    <Image
-                        className="w-4 opacity-100"
-                        src={getModelLogoSrc(modelLabel)}
-                        width={16}
-                        height={16}
-                        alt={modelLabel || "Model logo"}
+                        <Image
+                            className="w-4 opacity-100"
+                            src={getModelLogoSrc(modelLabel, modelId, modelProvider)}
+                            width={16}
+                            height={16}
+                            alt={modelLabel || "Model logo"}
                     />
                 </div>
 
                 <div className="min-w-0">
                     {children && (
-                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[13px] leading-[19px] text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
+                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[14px] leading-[20px] text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
                             {isHtmlImageAnswer ? (
                                 <div
                                     dangerouslySetInnerHTML={{

@@ -42,7 +42,7 @@ const Message = ({ image, file, children }: Props) => {
 
             <div className="flex items-start justify-end gap-2">
                 <div>
-                    <div className="content rounded-3xl rounded-tr-none bg-[#EAF4FF] px-3 py-2 text-[12px] leading-[18px] text-slate-700 max-md:rounded-2xl max-md:rounded-tr-none">
+                    <div className="content rounded-3xl rounded-tr-none bg-[#EAF4FF] px-3 py-2 text-[13px] leading-[19px] text-slate-700 max-md:rounded-2xl max-md:rounded-tr-none">
                         {children}
                     </div>
 

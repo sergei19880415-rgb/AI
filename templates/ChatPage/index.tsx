@@ -445,7 +445,27 @@ const ChatPage = () => {
                                                                 {item.content}
                                                             </Message>
                                                         ) : (
-                                                            <Answer>
+                                                            <Answer
+                                                                modelId={
+                                                                    item.model_id ||
+                                                                    windowItem.modelId
+                                                                }
+                                                                modelProvider={
+                                                                    modelInfoMap.get(
+                                                                        item.model_id ||
+                                                                            windowItem.modelId
+                                                                    )?.provider ||
+                                                                    windowItem.provider
+                                                                }
+                                                                modelLabel={
+                                                                    item.model_display_name ||
+                                                                    modelInfoMap.get(
+                                                                        item.model_id ||
+                                                                            windowItem.modelId
+                                                                    )?.display_name ||
+                                                                    windowItem.displayName
+                                                                }
+                                                            >
                                                                 {item.content}
                                                             </Answer>
                                                         )}
