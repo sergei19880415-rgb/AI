@@ -580,10 +580,6 @@ const Space = () => {
 
     return (
         <div className="border-b border-gray-100 px-3 py-3">
-            <div className="mb-1.5 pl-2 text-[11px] font-medium tracking-wide text-gray-400">
-                Проекты
-            </div>
-
             <button
                 type="button"
                 className="group mb-1.5 flex h-9 w-full items-center gap-2 rounded-lg px-3 text-body-sm text-gray-500 transition-colors hover:text-gray-900"
