@@ -27,6 +27,7 @@ import RecreateVideo from "./RecreateVideo";
 const WEBHOOK_URL =
     "https://tgdomen.ru/webhook/3bcfce39-4b24-4493-b3a7-cab0030e8a36";
 
+const FALLBACK_MODEL = "gpt-5-nano";
 const FALLBACK_EMAIL = "Sergei19880415@gmail.com";
 const SUMMARY_MODEL_ID = "summary";
 const SUMMARY_MODEL_LABEL = "✨ Саммари";
@@ -161,6 +162,21 @@ const getModelsCatalog = (): ModelCatalogItem[] => {
     } catch {
         return [];
     }
+};
+
+const getAllowedModels = (): string[] => {
+    const fromCatalog = getModelsCatalog()
+        .map((item) => String(item?.model_id || "").trim())
+        .filter(Boolean);
+
+    if (fromCatalog.length > 0) {
+        return fromCatalog;
+    }
+
+    return (localStorage.getItem("ai_allowed_models") || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
 };
 
 const readSelectedModels = (): string[] => {
@@ -440,56 +456,64 @@ const PanelMessage = () => {
         return getVisibleModels(activeMode === "image" ? "image" : "text");
     }, [activeMode, catalogVersion]);
 
-    const imageVisibleModels = useMemo(
-        () => (activeMode === "image" ? visibleModels : []),
-        [activeMode, visibleModels]
+    const activeImageModel = activeMode === "image" ? visibleModels[0] : null;
+
+    const imageQualityValues = useMemo(
+        () =>
+            activeImageModel
+                ? getUniqueOptionValues(
+                      activeImageModel.allowedQualities,
+                      activeImageModel.defaultQuality,
+                      "low"
+                  )
+                : [],
+        [activeImageModel]
+    );
+
+    const imageSizeValues = useMemo(
+        () =>
+            activeImageModel
+                ? getUniqueOptionValues(
+                      activeImageModel.allowedSizes,
+                      activeImageModel.defaultSize,
+                      "1024x1024"
+                  )
+                : [],
+        [activeImageModel]
     );
 
     useEffect(() => {
-        if (imageVisibleModels.length === 0) return;
+        if (!activeImageModel) return;
 
         setImageOptionsByModel((current) => {
-            let changed = false;
-            const next = { ...current };
+            const currentValue = current[activeImageModel.modelId];
+            const nextQuality = imageQualityValues.includes(currentValue?.quality)
+                ? currentValue.quality
+                : imageQualityValues[0] || activeImageModel.defaultQuality;
+            const nextSize = imageSizeValues.includes(currentValue?.size)
+                ? currentValue.size
+                : imageSizeValues[0] || activeImageModel.defaultSize;
 
-            imageVisibleModels.forEach((model) => {
-                const qualityValues = getUniqueOptionValues(
-                    model.allowedQualities,
-                    model.defaultQuality,
-                    "low"
-                );
+            if (
+                currentValue?.quality === nextQuality &&
+                currentValue?.size === nextSize
+            ) {
+                return current;
+            }
 
-                const sizeValues = getUniqueOptionValues(
-                    model.allowedSizes,
-                    model.defaultSize,
-                    "1024x1024"
-                );
-
-                const currentValue = current[model.modelId];
-
-                const nextQuality = qualityValues.includes(currentValue?.quality)
-                    ? currentValue!.quality
-                    : qualityValues[0] || model.defaultQuality;
-
-                const nextSize = sizeValues.includes(currentValue?.size)
-                    ? currentValue!.size
-                    : sizeValues[0] || model.defaultSize;
-
-                if (
-                    currentValue?.quality !== nextQuality ||
-                    currentValue?.size !== nextSize
-                ) {
-                    next[model.modelId] = {
-                        quality: nextQuality,
-                        size: nextSize,
-                    };
-                    changed = true;
-                }
-            });
-
-            return changed ? next : current;
+            return {
+                ...current,
+                [activeImageModel.modelId]: {
+                    quality: nextQuality,
+                    size: nextSize,
+                },
+            };
         });
-    }, [imageVisibleModels]);
+    }, [activeImageModel, imageQualityValues, imageSizeValues]);
+
+    const selectedImageOptions = activeImageModel
+        ? imageOptionsByModel[activeImageModel.modelId]
+        : null;
 
     const parseResponseText = (raw: string, status: number): string => {
         const trimmed = raw.trim();
@@ -907,122 +931,83 @@ const PanelMessage = () => {
                             </div>
                         )}
 
-                        {activeMode === "image" && imageVisibleModels.length > 0 && (
-                            <div className="mb-3 space-y-3">
-                                {imageVisibleModels.map((model) => {
-                                    const qualityValues = getUniqueOptionValues(
-                                        model.allowedQualities,
-                                        model.defaultQuality,
-                                        "low"
-                                    );
-
-                                    const sizeValues = getUniqueOptionValues(
-                                        model.allowedSizes,
-                                        model.defaultSize,
-                                        "1024x1024"
-                                    );
-
-                                    const qualityOptions = qualityValues.map(
+                        {activeMode === "image" && activeImageModel && (
+                            <div className="mb-3 grid gap-3 md:grid-cols-2">
+                                <Select
+                                    label="Quality"
+                                    placeholder="Выбери quality"
+                                    options={imageQualityValues.map(
                                         (value, index) => ({
                                             id: index,
                                             name: value,
                                         })
-                                    );
+                                    )}
+                                    value={
+                                        imageQualityValues
+                                            .map((value, index) => ({
+                                                id: index,
+                                                name: value,
+                                            }))
+                                            .find(
+                                                (option) =>
+                                                    option.name ===
+                                                    selectedImageOptions?.quality
+                                            ) || null
+                                    }
+                                    onChange={(option) => {
+                                        if (!option || !activeImageModel) return;
 
-                                    const sizeOptions = sizeValues.map(
+                                        setImageOptionsByModel((current) => ({
+                                            ...current,
+                                            [activeImageModel.modelId]: {
+                                                quality: option.name,
+                                                size:
+                                                    current[activeImageModel.modelId]
+                                                        ?.size ||
+                                                    imageSizeValues[0] ||
+                                                    activeImageModel.defaultSize,
+                                            },
+                                        }));
+                                    }}
+                                />
+
+                                <Select
+                                    label="Size"
+                                    placeholder="Выбери size"
+                                    options={imageSizeValues.map(
                                         (value, index) => ({
                                             id: index,
                                             name: value,
                                         })
-                                    );
+                                    )}
+                                    value={
+                                        imageSizeValues
+                                            .map((value, index) => ({
+                                                id: index,
+                                                name: value,
+                                            }))
+                                            .find(
+                                                (option) =>
+                                                    option.name ===
+                                                    selectedImageOptions?.size
+                                            ) || null
+                                    }
+                                    onChange={(option) => {
+                                        if (!option || !activeImageModel) return;
 
-                                    const selectedOptions =
-                                        imageOptionsByModel[model.modelId] || {
-                                            quality:
-                                                qualityValues[0] ||
-                                                model.defaultQuality,
-                                            size:
-                                                sizeValues[0] || model.defaultSize,
-                                        };
-
-                                    return (
-                                        <div
-                                            key={model.modelId}
-                                            className="rounded-xl border border-gray-100 bg-gray-25 p-3"
-                                        >
-                                            <div className="mb-2 text-[12px] font-semibold text-gray-700">
-                                                {model.displayName}
-                                            </div>
-
-                                            <div className="grid gap-3 md:grid-cols-2">
-                                                <Select
-                                                    label="Quality"
-                                                    placeholder="Выбери quality"
-                                                    options={qualityOptions}
-                                                    value={
-                                                        qualityOptions.find(
-                                                            (option) =>
-                                                                option.name ===
-                                                                selectedOptions.quality
-                                                        ) || null
-                                                    }
-                                                    onChange={(option) => {
-                                                        if (!option) return;
-
-                                                        setImageOptionsByModel(
-                                                            (current) => ({
-                                                                ...current,
-                                                                [model.modelId]: {
-                                                                    quality:
-                                                                        option.name,
-                                                                    size:
-                                                                        current[
-                                                                            model
-                                                                                .modelId
-                                                                        ]?.size ||
-                                                                        sizeValues[0] ||
-                                                                        model.defaultSize,
-                                                                },
-                                                            })
-                                                        );
-                                                    }}
-                                                />
-
-                                                <Select
-                                                    label="Size"
-                                                    placeholder="Выбери size"
-                                                    options={sizeOptions}
-                                                    value={
-                                                        sizeOptions.find(
-                                                            (option) =>
-                                                                option.name ===
-                                                                selectedOptions.size
-                                                        ) || null
-                                                    }
-                                                    onChange={(option) => {
-                                                        if (!option) return;
-
-                                                        setImageOptionsByModel(
-                                                            (current) => ({
-                                                                ...current,
-                                                                [model.modelId]: {
-                                                                    quality:
-                                                                        current[
-                                                                            model
-                                                                                .modelId
-                                                                        ]?.quality ||
-                                                                        qualityValues[0] ||
-                                                                        model.defaultQuality,
-                                                                    size: option.name,
-                                                                },
-                                                            })
-                                                        );
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                        setImageOptionsByModel((current) => ({
+                                            ...current,
+                                            [activeImageModel.modelId]: {
+                                                quality:
+                                                    current[activeImageModel.modelId]
+                                                        ?.quality ||
+                                                    imageQualityValues[0] ||
+                                                    activeImageModel.defaultQuality,
+                                                size: option.name,
+                                            },
+                                        }));
+                                    }}
+                                />
                             </div>
                         )}
 
