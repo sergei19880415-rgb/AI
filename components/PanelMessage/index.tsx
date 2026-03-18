@@ -934,8 +934,8 @@ const PanelMessage = () => {
                         {activeMode === "image" && activeImageModel && (
                             <div className="mb-3 grid gap-3 md:grid-cols-2">
                                 <Select
-                                    label="Quality"
-                                    placeholder="Выбери quality"
+                                    label="Качество"
+                                    placeholder="Выбери качество"
                                     options={imageQualityValues.map(
                                         (value, index) => ({
                                             id: index,
@@ -972,8 +972,8 @@ const PanelMessage = () => {
                                 />
 
                                 <Select
-                                    label="Size"
-                                    placeholder="Выбери size"
+                                    label="Размер"
+                                    placeholder="Выбери размер"
                                     options={imageSizeValues.map(
                                         (value, index) => ({
                                             id: index,
