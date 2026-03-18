@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type KeyboardEvent,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import {
     Dialog,
@@ -10,6 +16,7 @@ import {
 import TextareaAutosize from "react-textarea-autosize";
 import Icon from "@/components/Icon";
 import Button from "@/components/Button";
+import Select from "@/components/Select";
 import ChatFeatures from "./ChatFeatures";
 import Audio from "./Audio";
 import Voice from "./Voice";
@@ -76,6 +83,11 @@ type SummaryAnswer = {
     provider: string;
     model: string;
     text: string;
+};
+
+type ImageOptionState = {
+    quality: string;
+    size: string;
 };
 
 const getUserEmail = () => {
@@ -203,6 +215,26 @@ const normalizeStringArray = (value: unknown): string[] => {
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean);
+};
+
+const getUniqueOptionValues = (
+    values: string[],
+    fallbackValue?: string,
+    hardFallback?: string
+) => {
+    const result = [...values];
+    const normalizedFallback = String(fallbackValue || "").trim();
+    const normalizedHardFallback = String(hardFallback || "").trim();
+
+    if (normalizedFallback && !result.includes(normalizedFallback)) {
+        result.unshift(normalizedFallback);
+    }
+
+    if (result.length === 0 && normalizedHardFallback) {
+        result.push(normalizedHardFallback);
+    }
+
+    return [...new Set(result)];
 };
 
 const getVisibleModels = (
@@ -384,6 +416,10 @@ const PanelMessage = () => {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [summaryOpen, setSummaryOpen] = useState(false);
     const [summaryText, setSummaryText] = useState("");
+    const [catalogVersion, setCatalogVersion] = useState(0);
+    const [imageOptionsByModel, setImageOptionsByModel] = useState<
+        Record<string, ImageOptionState>
+    >({});
 
     useEffect(() => {
         const headerMode = activeMode === "image" ? "image" : "text";
@@ -398,6 +434,86 @@ const PanelMessage = () => {
         localStorage.setItem(getUiModeKey(), uiMode);
         window.dispatchEvent(new Event("ai-active-mode-updated"));
     }, [activeMode]);
+
+    useEffect(() => {
+        const handleUpdate = () => {
+            setCatalogVersion((value) => value + 1);
+        };
+
+        window.addEventListener("ai-models-catalog-updated", handleUpdate);
+        window.addEventListener("ai-selected-model-updated", handleUpdate);
+        window.addEventListener("ai-selected-models-updated", handleUpdate);
+
+        return () => {
+            window.removeEventListener("ai-models-catalog-updated", handleUpdate);
+            window.removeEventListener("ai-selected-model-updated", handleUpdate);
+            window.removeEventListener("ai-selected-models-updated", handleUpdate);
+        };
+    }, []);
+
+    const visibleModels = useMemo(() => {
+        void catalogVersion;
+        return getVisibleModels(activeMode === "image" ? "image" : "text");
+    }, [activeMode, catalogVersion]);
+
+    const activeImageModel = activeMode === "image" ? visibleModels[0] : null;
+
+    const imageQualityValues = useMemo(
+        () =>
+            activeImageModel
+                ? getUniqueOptionValues(
+                      activeImageModel.allowedQualities,
+                      activeImageModel.defaultQuality,
+                      "low"
+                  )
+                : [],
+        [activeImageModel]
+    );
+
+    const imageSizeValues = useMemo(
+        () =>
+            activeImageModel
+                ? getUniqueOptionValues(
+                      activeImageModel.allowedSizes,
+                      activeImageModel.defaultSize,
+                      "1024x1024"
+                  )
+                : [],
+        [activeImageModel]
+    );
+
+    useEffect(() => {
+        if (!activeImageModel) return;
+
+        setImageOptionsByModel((current) => {
+            const currentValue = current[activeImageModel.modelId];
+            const nextQuality = imageQualityValues.includes(currentValue?.quality)
+                ? currentValue.quality
+                : imageQualityValues[0] || activeImageModel.defaultQuality;
+            const nextSize = imageSizeValues.includes(currentValue?.size)
+                ? currentValue.size
+                : imageSizeValues[0] || activeImageModel.defaultSize;
+
+            if (
+                currentValue?.quality === nextQuality &&
+                currentValue?.size === nextSize
+            ) {
+                return current;
+            }
+
+            return {
+                ...current,
+                [activeImageModel.modelId]: {
+                    quality: nextQuality,
+                    size: nextSize,
+                },
+            };
+        });
+    }, [activeImageModel, imageQualityValues, imageSizeValues]);
+
+    const selectedImageOptions = activeImageModel
+        ? imageOptionsByModel[activeImageModel.modelId]
+        : null;
 
     const parseResponseText = (raw: string, status: number): string => {
         const trimmed = raw.trim();
@@ -491,9 +607,7 @@ const PanelMessage = () => {
 
         const currentUser =
             localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
-        const selectedModels = getVisibleModels(
-            activeMode === "image" ? "image" : "text"
-        );
+        const selectedModels = visibleModels;
         const requestMode = activeMode;
         const { sessions } = getCurrentSession();
 
@@ -610,8 +724,13 @@ const PanelMessage = () => {
                                           model: model.modelId,
                                           task_type: "image",
                                           mode: "image",
-                                          image_quality: model.defaultQuality,
-                                          image_size: model.defaultSize,
+                                          image_quality:
+                                              imageOptionsByModel[model.modelId]
+                                                  ?.quality ||
+                                              model.defaultQuality,
+                                          image_size:
+                                              imageOptionsByModel[model.modelId]
+                                                  ?.size || model.defaultSize,
                                           history: [],
                                           user_email: currentUser,
                                       }
@@ -689,7 +808,7 @@ const PanelMessage = () => {
 
         const summaryData = buildSummaryData(
             currentSession.messages || [],
-            getVisibleModels(activeMode === "image" ? "image" : "text")
+            visibleModels
         );
 
         if (!summaryData) {
@@ -812,6 +931,86 @@ const PanelMessage = () => {
                             </div>
                         )}
 
+                        {activeMode === "image" && activeImageModel && (
+                            <div className="mb-3 grid gap-3 md:grid-cols-2">
+                                <Select
+                                    label="Качество"
+                                    placeholder="Выбери quality"
+                                    options={imageQualityValues.map(
+                                        (value, index) => ({
+                                            id: index,
+                                            name: value,
+                                        })
+                                    )}
+                                    value={
+                                        imageQualityValues
+                                            .map((value, index) => ({
+                                                id: index,
+                                                name: value,
+                                            }))
+                                            .find(
+                                                (option) =>
+                                                    option.name ===
+                                                    selectedImageOptions?.quality
+                                            ) || null
+                                    }
+                                    onChange={(option) => {
+                                        if (!option || !activeImageModel) return;
+
+                                        setImageOptionsByModel((current) => ({
+                                            ...current,
+                                            [activeImageModel.modelId]: {
+                                                quality: option.name,
+                                                size:
+                                                    current[activeImageModel.modelId]
+                                                        ?.size ||
+                                                    imageSizeValues[0] ||
+                                                    activeImageModel.defaultSize,
+                                            },
+                                        }));
+                                    }}
+                                />
+
+                                <Select
+                                    label="Размер"
+                                    placeholder="Выбери size"
+                                    options={imageSizeValues.map(
+                                        (value, index) => ({
+                                            id: index,
+                                            name: value,
+                                        })
+                                    )}
+                                    value={
+                                        imageSizeValues
+                                            .map((value, index) => ({
+                                                id: index,
+                                                name: value,
+                                            }))
+                                            .find(
+                                                (option) =>
+                                                    option.name ===
+                                                    selectedImageOptions?.size
+                                            ) || null
+                                    }
+                                    onChange={(option) => {
+                                        if (!option || !activeImageModel) return;
+
+                                        setImageOptionsByModel((current) => ({
+                                            ...current,
+                                            [activeImageModel.modelId]: {
+                                                quality:
+                                                    current[activeImageModel.modelId]
+                                                        ?.quality ||
+                                                    imageQualityValues[0] ||
+                                                    activeImageModel.defaultQuality,
+                                                size: option.name,
+                                            },
+                                        }));
+                                    }}
+                                />
+                            </div>
+                        )}
+
                         <div className="relative text-0">
                             <TextareaAutosize
                                 className="w-full min-h-[40px] resize-none overflow-y-auto text-body-md leading-5 text-gray-900 outline-none placeholder:text-gray-500"
@@ -846,16 +1045,18 @@ const PanelMessage = () => {
                         </div>
                     </div>
 
-                    <div className="shrink-0 self-end pb-1 max-md:pb-0">
-                        <button
-                            type="button"
-                            onClick={summarizeAnswers}
-                            disabled={isSending || isSummarizing}
-                            className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-100 bg-white px-4 text-[12px] font-medium text-gray-700 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] transition-colors hover:bg-gray-25 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {isSummarizing ? "Саммари..." : "Саммари"}
-                        </button>
-                    </div>
+                    {activeMode !== "image" && (
+                        <div className="shrink-0 self-end pb-1 max-md:pb-0">
+                            <button
+                                type="button"
+                                onClick={summarizeAnswers}
+                                disabled={isSending || isSummarizing}
+                                className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-100 bg-white px-4 text-[12px] font-medium text-gray-700 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] transition-colors hover:bg-gray-25 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {isSummarizing ? "Саммари..." : "Саммари"}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
