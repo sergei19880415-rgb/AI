@@ -720,6 +720,7 @@ const PanelMessage = () => {
                             body: JSON.stringify(
                                 activeMode === "image"
                                     ? {
+                                          session_id: currentSession.id,
                                           user_query: text,
                                           model: model.modelId,
                                           task_type: "image",
@@ -735,6 +736,7 @@ const PanelMessage = () => {
                                           user_email: currentUser,
                                       }
                                     : {
+                                          session_id: currentSession.id,
                                           user_query: text,
                                           model: model.modelId,
                                           history,
@@ -832,6 +834,7 @@ const PanelMessage = () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
+                    session_id: currentSession.id,
                     user_query: summaryData.userQuery,
                     answers: summaryData.answers,
                     model: SUMMARY_MODEL_ID,
