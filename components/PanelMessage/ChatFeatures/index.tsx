@@ -9,6 +9,7 @@ type Props = {
     onSelectChat: () => void;
     onSelectImage: () => void;
     onGenerateVideo: () => void;
+    onAttachFile: () => void;
 };
 
 const ChatFeatures = ({
@@ -16,6 +17,7 @@ const ChatFeatures = ({
     onSelectChat,
     onSelectImage,
     onGenerateVideo,
+    onAttachFile,
 }: Props) => {
     const features = useMemo(
         () => [
@@ -39,6 +41,19 @@ const ChatFeatures = ({
             },
         ],
         [onGenerateVideo, onSelectChat, onSelectImage]
+    );
+
+    const menuItems = useMemo(
+        () => [
+            ...features,
+            {
+                key: "attach-file",
+                name: "Прикрепить файл",
+                icon: "attach-file",
+                onClick: onAttachFile,
+            },
+        ],
+        [features, onAttachFile]
     );
 
     const activeFeature =
@@ -66,7 +81,7 @@ const ChatFeatures = ({
                         transition
                         modal={false}
                     >
-                        {features.map((feature) => (
+                        {menuItems.map((feature) => (
                             <MenuItem
                                 className="group flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-25"
                                 key={feature.key}

@@ -5,6 +5,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type ChangeEvent,
     type KeyboardEvent,
 } from "react";
 import { useSearchParams } from "next/navigation";
@@ -26,6 +27,7 @@ import RecreateVideo from "./RecreateVideo";
 
 const WEBHOOK_URL =
     "https://tgdomen.ru/webhook/3bcfce39-4b24-4493-b3a7-cab0030e8a36";
+const FILE_UPLOAD_WEBHOOK_URL = "https://tgdomen.ru/webhook/file-upload";
 
 const FALLBACK_MODEL = "gpt-5-nano";
 const FALLBACK_EMAIL = "Sergei19880415@gmail.com";
@@ -408,12 +410,16 @@ const PanelMessage = () => {
     const sessionIdFromUrl = searchParams.get("id") || "";
     const abortControllersRef = useRef<AbortController[]>([]);
     const summaryAbortControllerRef = useRef<AbortController | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const [message, setMessage] = useState("");
     const [generateVideo, setGenerateVideo] = useState(false);
     const [activeMode, setActiveMode] = useState<ChatMode>("chat");
     const [isSending, setIsSending] = useState(false);
     const [isSummarizing, setIsSummarizing] = useState(false);
+    const [isUploadingFile, setIsUploadingFile] = useState(false);
+    const [attachedFileName, setAttachedFileName] = useState("");
+    const [attachedFileError, setAttachedFileError] = useState("");
     const [summaryOpen, setSummaryOpen] = useState(false);
     const [summaryText, setSummaryText] = useState("");
     const [catalogVersion, setCatalogVersion] = useState(0);
@@ -567,6 +573,74 @@ const PanelMessage = () => {
             );
 
         return { sessions, currentSession };
+    };
+
+    const ensureCurrentSession = () => {
+        const { sessions, currentSession } = getCurrentSession();
+
+        if (currentSession) {
+            return currentSession;
+        }
+
+        const nextSession = {
+            id: crypto.randomUUID(),
+            title: "Новый чат",
+            messages: [],
+            updatedAt: Date.now(),
+        };
+
+        saveSessions([nextSession, ...sessions]);
+        localStorage.setItem(getCurrentSessionKey(), nextSession.id);
+        window.history.replaceState({}, "", `/chat?id=${nextSession.id}`);
+
+        return nextSession;
+    };
+
+    const handleAttachFileClick = () => {
+        setAttachedFileError("");
+        fileInputRef.current?.click();
+    };
+
+    const handleFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+
+        if (!file) return;
+
+        setAttachedFileError("");
+        setIsUploadingFile(true);
+
+        try {
+            const currentUser =
+                localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+            const currentSession = ensureCurrentSession();
+            const formData = new FormData();
+
+            formData.append("session_id", currentSession.id);
+            formData.append("user_email", currentUser);
+            formData.append("data", file);
+
+            const response = await fetch(FILE_UPLOAD_WEBHOOK_URL, {
+                method: "POST",
+                body: formData,
+            });
+            const raw = await response.text();
+
+            if (!response.ok) {
+                throw new Error(
+                    raw || `Ошибка загрузки файла. status=${response.status}`
+                );
+            }
+
+            setAttachedFileName(file.name);
+        } catch (error) {
+            setAttachedFileError(
+                error instanceof Error ? error.message : "Ошибка загрузки файла"
+            );
+            setAttachedFileName("");
+        } finally {
+            setIsUploadingFile(false);
+            event.target.value = "";
+        }
     };
 
     const upsertSessionMessages = (
@@ -910,6 +984,7 @@ const PanelMessage = () => {
                                 setActiveMode("video");
                                 setGenerateVideo(true);
                             }}
+                            onAttachFile={handleAttachFileClick}
                         />
                     </div>
 
@@ -1014,6 +1089,20 @@ const PanelMessage = () => {
                             </div>
                         )}
 
+                        {(isUploadingFile || attachedFileName || attachedFileError) && (
+                            <div className="mb-3 text-[12px] leading-4">
+                                {isUploadingFile && (
+                                    <div className="text-gray-500">Файл загружается...</div>
+                                )}
+                                {!isUploadingFile && attachedFileName && (
+                                    <div className="text-gray-700">Файл чата: {attachedFileName}</div>
+                                )}
+                                {!isUploadingFile && attachedFileError && (
+                                    <div className="text-red-500">{attachedFileError}</div>
+                                )}
+                            </div>
+                        )}
+
                         <div className="relative text-0">
                             <TextareaAutosize
                                 className="w-full min-h-[40px] resize-none overflow-y-auto text-body-md leading-5 text-gray-900 outline-none placeholder:text-gray-500"
@@ -1023,6 +1112,12 @@ const PanelMessage = () => {
                                 onChange={(e) => setMessage(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder={placeholder}
+                            />
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                className="hidden"
+                                onChange={handleFileSelected}
                             />
                         </div>
 
