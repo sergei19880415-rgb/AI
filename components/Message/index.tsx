@@ -9,18 +9,41 @@ type Props = {
 };
 
 const Message = ({ image, file, children }: Props) => {
+    const contentText =
+        typeof children === "string"
+            ? children
+            : Array.isArray(children)
+              ? children.join(" ")
+              : "";
+
+    const handleCopy = async () => {
+        if (!contentText.trim()) return;
+
+        try {
+            await navigator.clipboard.writeText(contentText.trim());
+        } catch {
+            // ignore
+        }
+    };
+
+    const handleEdit = () => {
+        if (!contentText.trim()) return;
+
+        window.dispatchEvent(
+            new CustomEvent("ai-message-edit-request", {
+                detail: { content: contentText.trim() },
+            })
+        );
+    };
+
     const actions = [
         {
             icon: "copy",
-            onClick: () => {
-                console.log("Copy");
-            },
+            onClick: handleCopy,
         },
         {
             icon: "pencil-1",
-            onClick: () => {
-                console.log("Edit");
-            },
+            onClick: handleEdit,
         },
     ];
 

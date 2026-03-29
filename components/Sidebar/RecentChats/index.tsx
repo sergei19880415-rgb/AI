@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
+import TextInputDialog from "@/components/TextInputDialog";
+import { removeSessionUiSettings } from "@/lib/chatSessionUi";
 
 type ChatMessage = {
     id: string;
@@ -98,6 +100,9 @@ const RecentChats = () => {
 
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [openedMenuId, setOpenedMenuId] = useState<string | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
+    const [projectSessionId, setProjectSessionId] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -122,6 +127,7 @@ const RecentChats = () => {
 
             if (!menuRef.current.contains(event.target as Node)) {
                 setOpenedMenuId(null);
+                setConfirmDeleteId(null);
             }
         };
 
@@ -146,22 +152,12 @@ const RecentChats = () => {
         };
     }, [visibleSessions]);
 
-    const renameChat = (sessionId: string) => {
-        const current = sessions.find((item) => item.id === sessionId);
-        if (!current) return;
-
-        const nextTitle = window.prompt("Новое название чата", current.title);
-
-        if (nextTitle === null) return;
-
-        const cleanTitle = nextTitle.trim();
-        if (!cleanTitle) return;
-
+    const renameChat = (sessionId: string, nextTitle: string) => {
         const nextSessions = sessions.map((item) =>
             item.id === sessionId
                 ? {
                       ...item,
-                      title: cleanTitle,
+                      title: nextTitle,
                       updatedAt: Date.now(),
                   }
                 : item
@@ -171,23 +167,8 @@ const RecentChats = () => {
         setOpenedMenuId(null);
     };
 
-    const moveToProject = (sessionId: string) => {
-        const current = sessions.find((item) => item.id === sessionId);
-        if (!current) return;
-
+    const moveToProject = (sessionId: string, nextProject: string) => {
         const existingProjects = readProjects();
-        const currentProject = current.folder || "";
-        const hint = existingProjects.length
-            ? `Существующие проекты: ${existingProjects.join(", ")}`
-            : "Введите имя проекта";
-
-        const nextProject = window.prompt(
-            `${hint}\n\nИмя проекта. Оставь пустым, чтобы убрать из проекта`,
-            currentProject
-        );
-
-        if (nextProject === null) return;
-
         const cleanProject = nextProject.trim();
 
         const nextSessions = sessions.map((item) =>
@@ -225,15 +206,9 @@ const RecentChats = () => {
     };
 
     const deleteChat = (sessionId: string) => {
-        const current = sessions.find((item) => item.id === sessionId);
-        if (!current) return;
-
-        const isConfirmed = window.confirm(`Удалить чат "${current.title}"?`);
-
-        if (!isConfirmed) return;
-
         const nextSessions = sessions.filter((item) => item.id !== sessionId);
         saveSessions(sortSessions(nextSessions));
+        removeSessionUiSettings(sessionId);
 
         const currentSessionKey = `ai_current_session_${getUserEmail()}`;
         const savedCurrentId = localStorage.getItem(currentSessionKey) || "";
@@ -248,6 +223,7 @@ const RecentChats = () => {
             }
         }
 
+        setConfirmDeleteId(null);
         setOpenedMenuId(null);
     };
 
@@ -270,132 +246,4 @@ const RecentChats = () => {
                     <div className="flex items-center gap-2">
                         {item.isPinned && (
                             <Icon
-                                className={`shrink-0 ${
-                                    isActive ? "fill-primary-300" : "fill-gray-400"
-                                }`}
-                                name="box-fill"
-                            />
-                        )}
-
-                        <div className="min-w-0 flex-1">
-                            <div
-                                className={`truncate text-[13px] ${
-                                    isActive
-                                        ? "font-medium text-gray-900"
-                                        : "text-gray-700"
-                                }`}
-                            >
-                                {item.title || "Новый чат"}
-                            </div>
-                        </div>
-                    </div>
-                </Link>
-
-                <div
-                    className="relative pr-2"
-                    ref={openedMenuId === item.id ? menuRef : null}
-                >
-                    <button
-                        type="button"
-                        className={`flex size-8 items-center justify-center rounded-lg transition ${
-                            isActive
-                                ? "text-gray-600 hover:bg-[#EFE4FF] hover:text-gray-900"
-                                : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                        }`}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setOpenedMenuId((prev) =>
-                                prev === item.id ? null : item.id
-                            );
-                        }}
-                    >
-                        <Icon name="dots" className="fill-current" />
-                    </button>
-
-                    {openedMenuId === item.id && (
-                        <div className="absolute right-0 top-9 z-20 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
-                            <button
-                                type="button"
-                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                                onClick={() => renameChat(item.id)}
-                            >
-                                <Icon name="pencil" className="fill-gray-500" />
-                                <span>Переименовать</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                                onClick={() => moveToProject(item.id)}
-                            >
-                                <Icon name="box" className="fill-gray-500" />
-                                <span>Перенести в проект</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                                onClick={() => togglePin(item.id)}
-                            >
-                                <Icon name="box-fill" className="fill-gray-500" />
-                                <span>
-                                    {item.isPinned ? "Открепить чат" : "Закрепить чат"}
-                                </span>
-                            </button>
-
-                            <div className="my-1 h-px bg-gray-100" />
-
-                            <button
-                                type="button"
-                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50"
-                                onClick={() => deleteChat(item.id)}
-                            >
-                                <Icon name="trash" className="fill-red-500" />
-                                <span>Удалить</span>
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    };
-
-    return (
-        <div className="px-3 py-2">
-            <div className="flex flex-col gap-1">
-                {visibleSessions.length === 0 && (
-                    <div className="px-3 py-2 text-body-sm text-gray-400">
-                        Пока нет чатов
-                    </div>
-                )}
-
-                {groupedData.pinned.length > 0 && (
-                    <div className="mb-1">
-                        <div className="px-2 pb-1 text-[11px] font-medium tracking-wide text-gray-400">
-                            Закреплённые
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                            {groupedData.pinned.map(renderChatRow)}
-                        </div>
-                    </div>
-                )}
-
-                {groupedData.regular.length > 0 && (
-                    <div className="mb-1">
-                        {groupedData.pinned.length > 0 && (
-                            <div className="px-2 pb-1 text-[11px] font-medium tracking-wide text-gray-400">
-                                Остальные
-                            </div>
-                        )}
-                        <div className="flex flex-col gap-0.5">
-                            {groupedData.regular.map(renderChatRow)}
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export default RecentChats;
+                                className={`

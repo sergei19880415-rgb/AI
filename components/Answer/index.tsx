@@ -6,6 +6,7 @@ import GenerateVideo from "./GenerateVideo";
 type Props = {
     image?: string;
     video?: string;
+    messageId?: string;
     modelId?: string;
     modelProvider?: string;
     modelLabel?: string;
@@ -73,27 +74,13 @@ const getModelLogoSrc = (
 const Answer = ({
     image,
     video,
+    messageId,
     modelId,
     modelProvider,
     modelLabel,
     children,
 }: Props) => {
-    const actions = [
-        {
-            icon: "copy",
-            onClick: () => {
-                console.log("Copy");
-            },
-        },
-        {
-            icon: "refresh",
-            onClick: () => {
-                console.log("Refresh");
-            },
-        },
-    ];
-
-    const contentText =
+    contentText =
         typeof children === "string"
             ? children
             : Array.isArray(children)
@@ -106,21 +93,58 @@ const Answer = ({
         typeof children === "string" &&
         /^<img[\s\S]*?>$/i.test(trimmedContentText);
 
-    const showModelLabel =
+    handleCopy = async () => {
+        if (!trimmedContentText) return;
+
+        try {
+            const plainText = isHtmlImageAnswer
+                ? trimmedContentText.replace(/<[^>]+>/g, " ").trim() || trimmedContentText
+                : trimmedContentText;
+            await navigator.clipboard.writeText(plainText);
+        } catch {
+            // ignore
+        }
+    };
+
+    handleRefresh = () => {
+        if (!messageId) return;
+
+        window.dispatchEvent(
+            new CustomEvent("ai-answer-refresh-request", {
+                detail: {
+                    assistantMessageId: messageId,
+                    modelId: modelId || "",
+                },
+            })
+        );
+    };
+
+    const actions = [
+        {
+            icon: "copy",
+            onClick: handleCopy,
+        },
+        {
+            icon: "refresh",
+            onClick: handleRefresh,
+        },
+    ];
+
+    showModelLabel =
         !!modelLabel && !trimmedContentText.startsWith("Печатает...");
 
-    const hideActions = !!image || !!video || isHtmlImageAnswer;
+    hideActions = !!image || !!video || isHtmlImageAnswer;
 
     return (
         <div>
             <div className="flex items-start gap-2">
-                <div className="relative flex shrink-0 after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:w-3.5 after:h-0.5 after:bg-[#8A44F4]/40 after:rounded-[100%] after:blur-[0.125rem]">
-                        <Image
-                            className="w-4 opacity-100"
-                            src={getModelLogoSrc(modelLabel, modelId, modelProvider)}
-                            width={16}
-                            height={16}
-                            alt={modelLabel || "Model logo"}
+                <div className="relative flex shrink-0 after:absolute after:top-full after:left-1/2 after:h-0.5 after:w-3.5 after:-translate-x-1/2 after:rounded-[100%] after:bg-[#8A44F4]/40 after:blur-[0.125rem]">
+                    <Image
+                        className="w-4 opacity-100"
+                        src={getModelLogoSrc(modelLabel, modelId, modelProvider)}
+                        width={16}
+                        height={16}
+                        alt={modelLabel || "Model logo"}
                     />
                 </div>
 
