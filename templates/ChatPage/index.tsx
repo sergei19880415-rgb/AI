@@ -328,8 +328,23 @@ const ChatPage = () => {
         uiMode === "video"
             ? 1
             : uiMode === "image"
-            ? Math.min(Math.max(parallelCount, 1), 2)
+            ? 1
             : Math.max(modelWindows.length, parallelCount, 1);
+
+    const latestAssistantMessage = [...messages]
+        .reverse()
+        .find((item) => item.role === "assistant");
+
+    const imageWindowModelId = latestAssistantMessage?.model_id || "";
+    const imageWindowModelInfo = imageWindowModelId
+        ? modelInfoMap.get(imageWindowModelId)
+        : undefined;
+    const imageWindowDisplayName =
+        latestAssistantMessage?.model_display_name ||
+        imageWindowModelInfo?.display_name ||
+        "Генерация изображения";
+    const imageWindowProvider =
+        imageWindowModelInfo?.provider?.trim() || "AI";
 
     const chatWindows = Array.from({ length: windowCount }, (_, index) => {
         return (
@@ -478,17 +493,75 @@ const ChatPage = () => {
                             );
                         })}
 
-                    {uiMode === "image" &&
-                        Array.from({ length: windowCount }, (_, index) => (
-                            <div
-                                key={`image-window-${index}`}
-                                className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white p-3"
-                            >
-                                {renderEmptyWorkspace(
-                                    `Окно предпросмотра изображения ${index + 1}`
-                                )}
+                    {uiMode === "image" && (
+                        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                            <div className="border-b border-gray-100 px-3 py-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="relative shrink-0">
+                                        <Image
+                                            className="h-4 w-4 rounded-full object-contain"
+                                            src={getModelLogoSrc(
+                                                imageWindowModelId,
+                                                imageWindowProvider
+                                            )}
+                                            width={16}
+                                            height={16}
+                                            alt={imageWindowDisplayName}
+                                        />
+                                    </div>
+
+                                    <div className="min-w-0 leading-none">
+                                        <div className="truncate text-[13px] font-medium leading-4 text-primary-300">
+                                            {imageWindowDisplayName}
+                                        </div>
+                                        <div className="truncate text-[10px] leading-[11px] text-gray-500">
+                                            {imageWindowProvider}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        ))}
+
+                            <div className="min-h-0 flex-1 overflow-auto p-3">
+                                <div className="flex flex-col gap-3">
+                                    {messages.length === 0 ? (
+                                        renderEmptyWorkspace(
+                                            "Здесь появится сгенерированное изображение"
+                                        )
+                                    ) : (
+                                        messages.map((item) => {
+                                            const itemModelId = item.model_id || imageWindowModelId;
+                                            const itemModelInfo = itemModelId
+                                                ? modelInfoMap.get(itemModelId)
+                                                : undefined;
+
+                                            return (
+                                                <React.Fragment key={item.id}>
+                                                    {item.role === "user" ? (
+                                                        <Message>{item.content}</Message>
+                                                    ) : (
+                                                        <Answer
+                                                            modelId={itemModelId}
+                                                            modelProvider={
+                                                                itemModelInfo?.provider ||
+                                                                imageWindowProvider
+                                                            }
+                                                            modelLabel={
+                                                                item.model_display_name ||
+                                                                itemModelInfo?.display_name ||
+                                                                imageWindowDisplayName
+                                                            }
+                                                        >
+                                                            {item.content}
+                                                        </Answer>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {uiMode === "video" && (
                         <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white p-3">
