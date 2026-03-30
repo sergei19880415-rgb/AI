@@ -10,7 +10,7 @@ import {
     getSelectedModelKey,
     getSelectedModelsKey,
     writeSessionUiSettings,
-} from "@/lib/chatSessionUi";
+} from "@/lib/chatUiSettings";
 
 type ModelMode = "text" | "image";
 type UiMode = "chat" | "image" | "video";
