@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import TextInputDialog from "@/components/TextInputDialog";
-import { removeSessionUiSettings } from "@/lib/chatSessionUi";
+import { removeSessionUiSettings } from "@/lib/chatUiSettings";
 
 type ChatMessage = {
     id: string;
