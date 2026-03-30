@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
+import {
+    applySessionUiSettingsToLegacyKeys,
+    getParallelCountKey,
+    getSelectedModelKey,
+    getSelectedModelsKey,
+    writeSessionUiSettings,
+} from "@/lib/chatSessionUi";
 
 type ModelMode = "text" | "image";
 type UiMode = "chat" | "image" | "video";
@@ -54,30 +62,6 @@ const getModelLogoSrc = (modelId?: string, provider?: string): string => {
     return "/images/logo-circle.png";
 };
 
-const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
-
-const getSelectedModelKey = () => {
-    return `ai_selected_model_${getUserEmail()}`;
-};
-
-const getSelectedModelsKey = () => {
-    return `ai_selected_models_${getUserEmail()}`;
-};
-
-const getParallelCountKey = () => {
-    return `ai_parallel_count_${getUserEmail()}`;
-};
-
-const getActiveModeKey = () => {
-    return `ai_active_mode_${getUserEmail()}`;
-};
-
-const getUiModeKey = () => {
-    return `ai_ui_mode_${getUserEmail()}`;
-};
-
 const normalizePositiveInt = (value: unknown, fallback: number) => {
     const num = Number(value);
     if (!Number.isFinite(num) || num < 1) return fallback;
@@ -90,14 +74,6 @@ const normalizeModeType = (value: unknown): ModelMode => {
         : "text";
 };
 
-const getHeaderMode = (): ModelMode => {
-    const raw = (localStorage.getItem(getActiveModeKey()) || "text")
-        .trim()
-        .toLowerCase();
-
-    return raw === "image" ? "image" : "text";
-};
-
 const getModelsCatalog = (): ModelCatalogItem[] => {
     try {
         const raw = localStorage.getItem("ai_models_catalog");
@@ -108,16 +84,6 @@ const getModelsCatalog = (): ModelCatalogItem[] => {
     } catch {
         return [];
     }
-};
-
-const getUiMode = (): UiMode => {
-    const raw = (localStorage.getItem(getUiModeKey()) || "chat")
-        .trim()
-        .toLowerCase();
-
-    if (raw === "image") return "image";
-    if (raw === "video") return "video";
-    return "chat";
 };
 
 const getAllowedWindowCounts = (
@@ -271,6 +237,8 @@ const WindowPattern = ({
 };
 
 const ChatVersions = () => {
+    const searchParams = useSearchParams();
+    const sessionIdFromUrl = searchParams.get("id") || "";
     const rootRef = useRef<HTMLDivElement | null>(null);
 
     const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
@@ -358,6 +326,12 @@ const ChatVersions = () => {
             localStorage.removeItem(getSelectedModelKey());
         }
 
+        writeSessionUiSettings(sessionIdFromUrl, {
+            parallelCount: normalizedParallelCount,
+            selectedModels: normalizedSelectedModels,
+            selectedModel: normalizedSelectedModels[0] || "",
+        });
+
         if (shouldEmitEvents) {
             window.dispatchEvent(new Event("ai-parallel-settings-updated"));
             window.dispatchEvent(new Event("ai-selected-models-updated"));
@@ -372,8 +346,20 @@ const ChatVersions = () => {
 
     const loadState = () => {
         const catalog = getModelsCatalog();
-        const nextMode = getHeaderMode();
-        const nextUiMode = getUiMode();
+        const sessionSettings = applySessionUiSettingsToLegacyKeys(sessionIdFromUrl);
+        const nextMode =
+            String(sessionSettings.activeMode || "text").trim().toLowerCase() ===
+            "image"
+                ? "image"
+                : "text";
+        const nextUiMode =
+            String(sessionSettings.uiMode || "chat").trim().toLowerCase() ===
+            "image"
+                ? "image"
+                : String(sessionSettings.uiMode || "chat").trim().toLowerCase() ===
+                    "video"
+                  ? "video"
+                  : "chat";
         const maxParallel = normalizePositiveInt(
             localStorage.getItem("ai_max_parallel_models"),
             1
@@ -385,21 +371,27 @@ const ChatVersions = () => {
 
         const savedParallelCount = getSafeParallelCount(
             nextUiMode,
-            localStorage.getItem(getParallelCountKey()),
+            sessionSettings.parallelCount || localStorage.getItem(getParallelCountKey()),
             maxParallel,
             visibleForMode.length
         );
 
-        let selectedFromStorage: string[] = [];
+        let selectedFromStorage: string[] = Array.isArray(sessionSettings.selectedModels)
+            ? sessionSettings.selectedModels
+                  .map((item) => String(item || "").trim())
+                  .filter(Boolean)
+            : [];
 
         try {
-            const rawSelectedModels = localStorage.getItem(getSelectedModelsKey());
-            if (rawSelectedModels) {
-                const parsed = JSON.parse(rawSelectedModels);
-                if (Array.isArray(parsed)) {
-                    selectedFromStorage = parsed.map((item) =>
-                        String(item || "").trim()
-                    );
+            if (selectedFromStorage.length === 0) {
+                const rawSelectedModels = localStorage.getItem(getSelectedModelsKey());
+                if (rawSelectedModels) {
+                    const parsed = JSON.parse(rawSelectedModels);
+                    if (Array.isArray(parsed)) {
+                        selectedFromStorage = parsed.map((item) =>
+                            String(item || "").trim()
+                        );
+                    }
                 }
             }
         } catch {
@@ -408,7 +400,9 @@ const ChatVersions = () => {
 
         if (selectedFromStorage.length === 0) {
             const singleSelected = (
-                localStorage.getItem(getSelectedModelKey()) || ""
+                sessionSettings.selectedModel ||
+                localStorage.getItem(getSelectedModelKey()) ||
+                ""
             ).trim();
 
             if (singleSelected) {
@@ -466,7 +460,7 @@ const ChatVersions = () => {
             );
             window.removeEventListener("ai-active-mode-updated", handleUpdate);
         };
-    }, []);
+    }, [sessionIdFromUrl]);
 
     useEffect(() => {
         const handleOutsideClick = (event: MouseEvent) => {
