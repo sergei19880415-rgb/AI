@@ -300,21 +300,64 @@ const ChatPage = () => {
         ];
     }, [modelInfoMap, visibleModelIds]);
 
-    const getWindowMessages = (modelId: string, windowIndex: number) => {
-        const assistantMessages = messages.filter((item) => {
-            if (item.role !== "assistant") return false;
-            if (!modelId) return windowIndex === 0;
-            return item.model_id === modelId;
-        });
+    const messageTurns = useMemo(() => {
+        const turns: Array<{
+            user: ChatMessage;
+            assistants: ChatMessage[];
+        }> = [];
+        let currentTurn: { user: ChatMessage; assistants: ChatMessage[] } | null =
+            null;
 
-        if (assistantMessages.length === 0) {
-            return [];
+        for (const item of messages) {
+            if (item.role === "user") {
+                currentTurn = {
+                    user: item,
+                    assistants: [],
+                };
+                turns.push(currentTurn);
+                continue;
+            }
+
+            if (!currentTurn) {
+                continue;
+            }
+
+            currentTurn.assistants.push(item);
         }
 
-        return messages.filter((item) => {
-            if (item.role === "user") return true;
-            if (!modelId) return windowIndex === 0;
-            return item.model_id === modelId;
+        return turns;
+    }, [messages]);
+
+    const getWindowMessages = (modelId: string, windowIndex: number) => {
+        const canShowOrphanTurn = windowIndex === 0;
+        const selectedModelSet = new Set(
+            modelWindows.map((item) => item.modelId).filter(Boolean)
+        );
+
+        return messageTurns.flatMap((turn) => {
+            const hasVisibleModelAssistant = turn.assistants.some((assistant) =>
+                selectedModelSet.has(assistant.model_id || "")
+            );
+
+            const turnAssistants = turn.assistants.filter((assistant) => {
+                if (!modelId) {
+                    return canShowOrphanTurn;
+                }
+
+                return assistant.model_id === modelId;
+            });
+
+            if (canShowOrphanTurn) {
+                if (!hasVisibleModelAssistant) {
+                    return [turn.user, ...turn.assistants];
+                }
+            }
+
+            if (turnAssistants.length === 0) {
+                return [];
+            }
+
+            return [turn.user, ...turnAssistants];
         });
     };
 
