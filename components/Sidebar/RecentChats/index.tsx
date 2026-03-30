@@ -103,6 +103,7 @@ const RecentChats = () => {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
     const [projectSessionId, setProjectSessionId] = useState<string | null>(null);
+    const [existingProjects, setExistingProjects] = useState<string[]>([]);
     const menuRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -118,6 +119,20 @@ const RecentChats = () => {
         return () => {
             window.removeEventListener("ai-chat-sessions-updated", loadSessions);
             window.removeEventListener("ai-chat-updated", loadSessions);
+        };
+    }, []);
+
+    useEffect(() => {
+        const loadProjects = () => {
+            setExistingProjects(readProjects());
+        };
+
+        loadProjects();
+
+        window.addEventListener("ai-projects-updated", loadProjects);
+
+        return () => {
+            window.removeEventListener("ai-projects-updated", loadProjects);
         };
     }, []);
 
@@ -153,11 +168,14 @@ const RecentChats = () => {
     }, [visibleSessions]);
 
     const renameChat = (sessionId: string, nextTitle: string) => {
+        const cleanTitle = nextTitle.trim();
+        if (!cleanTitle) return;
+
         const nextSessions = sessions.map((item) =>
             item.id === sessionId
                 ? {
                       ...item,
-                      title: nextTitle,
+                      title: cleanTitle,
                       updatedAt: Date.now(),
                   }
                 : item
@@ -168,7 +186,6 @@ const RecentChats = () => {
     };
 
     const moveToProject = (sessionId: string, nextProject: string) => {
-        const existingProjects = readProjects();
         const cleanProject = nextProject.trim();
 
         const nextSessions = sessions.map((item) =>
@@ -373,7 +390,6 @@ const RecentChats = () => {
 
     const renameSession = sessions.find((item) => item.id === renameSessionId);
     const projectSession = sessions.find((item) => item.id === projectSessionId);
-    const existingProjects = readProjects();
 
     return (
         <>
