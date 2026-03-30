@@ -6,6 +6,7 @@ import {
     useRef,
     useState,
     type ChangeEvent,
+    type DragEvent,
     type KeyboardEvent,
 } from "react";
 import { useSearchParams } from "next/navigation";
@@ -424,6 +425,7 @@ const PanelMessage = () => {
     const [isSending, setIsSending] = useState(false);
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [isUploadingFile, setIsUploadingFile] = useState(false);
+    const [isFileDragActive, setIsFileDragActive] = useState(false);
     const [attachedFileName, setAttachedFileName] = useState("");
     const [attachedFileError, setAttachedFileError] = useState("");
     const [summaryOpen, setSummaryOpen] = useState(false);
@@ -654,14 +656,7 @@ const PanelMessage = () => {
         return nextSession;
     };
 
-    const handleAttachFileClick = () => {
-        setAttachedFileError("");
-        fileInputRef.current?.click();
-    };
-
-    const handleFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-
+    const uploadFile = async (file?: File | null) => {
         if (!file) return;
 
         setAttachedFileError("");
@@ -697,8 +692,35 @@ const PanelMessage = () => {
             setAttachedFileName("");
         } finally {
             setIsUploadingFile(false);
-            event.target.value = "";
         }
+    };
+
+    const handleAttachFileClick = () => {
+        setAttachedFileError("");
+        fileInputRef.current?.click();
+    };
+
+    const handleFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        await uploadFile(file);
+        event.target.value = "";
+    };
+
+    const handleDropFile = async (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        setIsFileDragActive(false);
+
+        if (isUploadingFile) return;
+
+        const files = event.dataTransfer.files;
+        if (!files || files.length === 0) return;
+
+        if (files.length > 1) {
+            setAttachedFileError("Можно загрузить только один файл за раз.");
+            return;
+        }
+
+        await uploadFile(files[0]);
     };
 
     const upsertSessionMessages = (
@@ -1192,7 +1214,29 @@ const PanelMessage = () => {
     return (
         <>
             <div className="relative z-2 mx-auto w-full max-w-258">
-                <div className="flex items-stretch gap-3 rounded-xl border border-gray-50 bg-gray-0 p-3 shadow-[0_3rem_6.25rem_0_rgba(17,12,46,0.15)] max-md:flex-col max-md:items-stretch max-md:gap-2 max-md:p-3">
+                <div
+                    className={`flex items-stretch gap-3 rounded-xl border bg-gray-0 p-3 shadow-[0_3rem_6.25rem_0_rgba(17,12,46,0.15)] max-md:flex-col max-md:items-stretch max-md:gap-2 max-md:p-3 ${
+                        isFileDragActive
+                            ? "border-primary-300 ring-2 ring-primary-100"
+                            : "border-gray-50"
+                    }`}
+                    onDragEnter={(event) => {
+                        event.preventDefault();
+                        setIsFileDragActive(true);
+                    }}
+                    onDragOver={(event) => {
+                        event.preventDefault();
+                    }}
+                    onDragLeave={(event) => {
+                        event.preventDefault();
+                        if (event.currentTarget === event.target) {
+                            setIsFileDragActive(false);
+                        }
+                    }}
+                    onDrop={(event) => {
+                        void handleDropFile(event);
+                    }}
+                >
                     <div className="shrink-0 self-stretch">
                         <ChatFeatures
                             activeMode={activeMode}
@@ -1324,6 +1368,12 @@ const PanelMessage = () => {
                                 {!isUploadingFile && attachedFileError && (
                                     <div className="text-red-500">{attachedFileError}</div>
                                 )}
+                            </div>
+                        )}
+
+                        {isFileDragActive && !isUploadingFile && (
+                            <div className="mb-3 rounded-lg border border-dashed border-primary-200 bg-primary-50 px-3 py-2 text-[12px] text-primary-300">
+                                Перетащи файл сюда, чтобы загрузить
                             </div>
                         )}
 
