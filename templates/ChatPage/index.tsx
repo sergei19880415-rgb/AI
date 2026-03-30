@@ -253,7 +253,10 @@ const ChatPage = () => {
             window.removeEventListener("ai-chat-updated", loadState);
             window.removeEventListener("ai-selected-model-updated", loadState);
             window.removeEventListener("ai-selected-models-updated", loadState);
-            window.removeEventListener("ai-parallel-settings-updated", loadState);
+            window.removeEventListener(
+                "ai-parallel-settings-updated",
+                loadState
+            );
             window.removeEventListener("ai-models-catalog-updated", loadState);
             window.removeEventListener("ai-active-mode-updated", loadState);
         };
@@ -282,7 +285,7 @@ const ChatPage = () => {
                     displayName:
                         info?.display_name?.trim() ||
                         modelId ||
-                        `Додель ${index + 1}`,
+                        `Модель ${index + 1}`,
                     provider: info?.provider?.trim() || "AI",
                 };
             });
@@ -298,18 +301,20 @@ const ChatPage = () => {
     }, [modelInfoMap, visibleModelIds]);
 
     const getWindowMessages = (modelId: string, windowIndex: number) => {
+        const assistantMessages = messages.filter((item) => {
+            if (item.role !== "assistant") return false;
+            if (!modelId) return windowIndex === 0;
+            return item.model_id === modelId;
+        });
+
+        if (assistantMessages.length === 0) {
+            return [];
+        }
+
         return messages.filter((item) => {
-            if (item.role === "user") return windowIndex === 0;
-
-            if (!modelId) {
-                return windowIndex === 0;
-            }
-
-            if (item.model_id) {
-                return item.model_id === modelId;
-            }
-
-            return windowIndex === 0;
+            if (item.role === "user") return true;
+            if (!modelId) return windowIndex === 0;
+            return item.model_id === modelId;
         });
     };
 
@@ -357,32 +362,29 @@ const ChatPage = () => {
     const renameCurrentChat = (nextTitle: string) => {
         const session = ensureSession(sessionIdFromUrl);
 
-        const cleanTitle = nextTitle.trim();
-        if (!cleanTitle) return;
-
         const sessions = readSessions().map((item) =>
             item.id === session.id
                 ? {
                       ...item,
-                      title: cleanTitle,
+                      title: nextTitle,
                       updatedAt: Date.now(),
                   }
                 : item
         );
 
         saveSessions(sessions);
-        setSessionTitle(cleanTitle);
+        setSessionTitle(nextTitle);
     };
 
     return (
         <Layout
             title={sessionTitle}
             onRenameTitle={renameCurrentChat}
-            classWrapper="flex h-hull min-h-0 flex-col overflow-hidden px-3 pb-2 pt-2 md:px-4 md:pb-3 md:pt-3"
+            classWrapper="flex h-full min-h-0 flex-col overflow-hidden px-3 pb-2 pt-2 md:px-4 md:pb-3 md:pt-3"
         >
             <div className="flex min-h-0 flex-1 flex-col">
                 <div
-                    className={`grid h-hull min-h-0 auto-rows-fr gap-3 ${getGridClassName(
+                    className={`grid h-full min-h-0 auto-rows-fr gap-3 ${getGridClassName(
                         windowCount
                     )}`}
                 >
@@ -405,15 +407,15 @@ const ChatPage = () => {
                                                     className="h-4 w-4 rounded-full object-contain"
                                                     src={getModelLogoSrc(
                                                         windowItem.modelId,
-                                                            windowItem.provider
+                                                        windowItem.provider
                                                     )}
                                                     width={16}
                                                     height={16}
                                                     alt={
                                                         windowItem.displayName ||
-                                                            "Модель"
+                                                        "Модель"
                                                     }
-                                                  />
+                                                />
                                             </div>
 
                                             <div className="min-w-0 leading-none">
@@ -433,38 +435,38 @@ const ChatPage = () => {
                                                 renderEmptyWorkspace(
                                                     "Здесь появится ответ этой модели"
                                                 )
-                                                : (
+                                            ) : (
                                                 windowMessages.map((item) => (
                                                     <React.Fragment key={item.id}>
                                                         {item.role === "user" ? (
-                                                              <Message>
-                                                                  {item.content}
-                                                              </Message>
+                                                            <Message>
+                                                                {item.content}
+                                                            </Message>
                                                         ) : (
                                                             <Answer
-                                                              messageId={item.id}
+                                                                messageId={item.id}
                                                                 modelId={
-                                                                  item.model_id ||
-                                                                  windowItem.modelId
-                                                              }
+                                                                    item.model_id ||
+                                                                    windowItem.modelId
+                                                                }
                                                                 modelProvider={
-                                                                  modelInfoMap.get(
-                                                                      item.model_id ||
+                                                                    modelInfoMap.get(
+                                                                        item.model_id ||
                                                                             windowItem.modelId
-                                                                  )?.provider ||
-                                                                windowItem.provider
-                                                              }
-                                                            modelLabel={
-                                                                  item.model_display_name ||
-                                                                  modelInfoMap.get(
-                                                                      item.model_id ||
-                                                                          windowItem.modelId
-                                                                   )?.display_name ||
-                                                                  windowItem.displayName
-                                                            }
+                                                                    )?.provider ||
+                                                                    windowItem.provider
+                                                                }
+                                                                modelLabel={
+                                                                    item.model_display_name ||
+                                                                    modelInfoMap.get(
+                                                                        item.model_id ||
+                                                                            windowItem.modelId
+                                                                    )?.display_name ||
+                                                                    windowItem.displayName
+                                                                }
                                                             >
-                                                            {item.content}
-                                                          </Answer>
+                                                                {item.content}
+                                                            </Answer>
                                                         )}
                                                     </React.Fragment>
                                                 ))
