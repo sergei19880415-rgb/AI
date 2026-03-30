@@ -80,7 +80,7 @@ const Answer = ({
     modelLabel,
     children,
 }: Props) => {
-    contentText =
+    const contentText =
         typeof children === "string"
             ? children
             : Array.isArray(children)
@@ -93,7 +93,7 @@ const Answer = ({
         typeof children === "string" &&
         /^<img[\s\S]*?>$/i.test(trimmedContentText);
 
-    handleCopy = async () => {
+    const handleCopy = async () => {
         if (!trimmedContentText) return;
 
         try {
@@ -106,7 +106,7 @@ const Answer = ({
         }
     };
 
-    handleRefresh = () => {
+    const handleRefresh = () => {
         if (!messageId) return;
 
         window.dispatchEvent(
@@ -130,10 +130,10 @@ const Answer = ({
         },
     ];
 
-    showModelLabel =
+    const showModelLabel =
         !!modelLabel && !trimmedContentText.startsWith("Печатает...");
 
-    hideActions = !!image || !!video || isHtmlImageAnswer;
+    const hideActions = !!image || !!video || isHtmlImageAnswer;
 
     return (
         <div>
