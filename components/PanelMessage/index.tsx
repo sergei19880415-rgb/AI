@@ -24,6 +24,11 @@ import Voice from "./Voice";
 import Time from "./Time";
 import CloseLine from "./CloseLine";
 import RecreateVideo from "./RecreateVideo";
+import {
+    applySessionUiSettingsToLegacyKeys,
+    readSessionUiSettings,
+    writeSessionUiSettings,
+} from "@/lib/chatSessionUi";
 
 const WEBHOOK_URL =
     "https://tgdomen.ru/webhook/3bcfce39-4b24-4493-b3a7-cab0030e8a36";
@@ -411,6 +416,7 @@ const PanelMessage = () => {
     const abortControllersRef = useRef<AbortController[]>([]);
     const summaryAbortControllerRef = useRef<AbortController | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
     const [message, setMessage] = useState("");
     const [generateVideo, setGenerateVideo] = useState(false);
@@ -428,6 +434,28 @@ const PanelMessage = () => {
     >({});
 
     useEffect(() => {
+        if (!sessionIdFromUrl) return;
+
+        const resolvedSettings = applySessionUiSettingsToLegacyKeys(sessionIdFromUrl);
+        const nextUiMode = String(resolvedSettings.uiMode || "chat")
+            .trim()
+            .toLowerCase();
+
+        setActiveMode(
+            nextUiMode === "image"
+                ? "image"
+                : nextUiMode === "video"
+                  ? "video"
+                  : "chat"
+        );
+        setGenerateVideo(nextUiMode === "video");
+        setImageOptionsByModel(
+            readSessionUiSettings(sessionIdFromUrl)?.imageOptionsByModel || {}
+        );
+        setCatalogVersion((value) => value + 1);
+    }, [sessionIdFromUrl]);
+
+    useEffect(() => {
         const headerMode = activeMode === "image" ? "image" : "text";
         const uiMode =
             activeMode === "image"
@@ -438,8 +466,18 @@ const PanelMessage = () => {
 
         localStorage.setItem(getActiveModeKey(), headerMode);
         localStorage.setItem(getUiModeKey(), uiMode);
+        writeSessionUiSettings(sessionIdFromUrl, {
+            activeMode: headerMode,
+            uiMode,
+        });
         window.dispatchEvent(new Event("ai-active-mode-updated"));
-    }, [activeMode]);
+    }, [activeMode, sessionIdFromUrl]);
+
+    useEffect(() => {
+        writeSessionUiSettings(sessionIdFromUrl, {
+            imageOptionsByModel,
+        });
+    }, [imageOptionsByModel, sessionIdFromUrl]);
 
     useEffect(() => {
         const handleUpdate = () => {
@@ -454,6 +492,26 @@ const PanelMessage = () => {
             window.removeEventListener("ai-models-catalog-updated", handleUpdate);
             window.removeEventListener("ai-selected-model-updated", handleUpdate);
             window.removeEventListener("ai-selected-models-updated", handleUpdate);
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleEditRequest = (event: Event) => {
+            const detail = (event as CustomEvent<{ content?: string }>).detail;
+            const nextContent = String(detail?.content || "").trim();
+            if (!nextContent) return;
+
+            setMessage(nextContent);
+            requestAnimationFrame(() => textareaRef.current?.focus());
+        };
+
+        window.addEventListener("ai-message-edit-request", handleEditRequest);
+
+        return () => {
+            window.removeEventListener(
+                "ai-message-edit-request",
+                handleEditRequest
+            );
         };
     }, []);
 
@@ -674,6 +732,172 @@ const PanelMessage = () => {
     const handleStop = () => {
         abortControllersRef.current.forEach((controller) => controller.abort());
     };
+
+    const refreshAssistantMessage = async (
+        assistantMessageId: string,
+        modelId: string
+    ) => {
+        if (isSummarizing || !assistantMessageId || !modelId) return;
+
+        const currentUser =
+            localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+        const { currentSession } = getCurrentSession();
+
+        if (!currentSession) return;
+
+        const messages = currentSession.messages || [];
+        const assistantIndex = messages.findIndex(
+            (item) => item.id === assistantMessageId && item.role === "assistant"
+        );
+
+        if (assistantIndex === -1) return;
+
+        let userIndex = -1;
+
+        for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+            if (messages[index]?.role === "user") {
+                userIndex = index;
+                break;
+            }
+        }
+
+        if (userIndex === -1) return;
+
+        const promptText = String(messages[userIndex]?.content || "").trim();
+        if (!promptText) return;
+
+        const modelCatalogItem = getModelsCatalog().find(
+            (item) => item.model_id === modelId
+        );
+        const isImageModel =
+            normalizeModeType(modelCatalogItem?.mode_type) === "image";
+        const requestMode = isImageModel ? "image" : activeMode;
+        const modelDisplayName =
+            messages[assistantIndex]?.model_display_name ||
+            modelCatalogItem?.display_name ||
+            modelId;
+        const defaultQuality =
+            String(modelCatalogItem?.default_quality || "").trim() || "low";
+        const defaultSize =
+            String(modelCatalogItem?.default_size || "").trim() || "1024x1024";
+
+        replaceMessageById(currentSession.id, assistantMessageId, {
+            id: assistantMessageId,
+            role: "assistant",
+            content: isImageModel ? "Генерирую изображение..." : "Печатает...",
+            isLoading: true,
+            model_id: modelId,
+            model_display_name: modelDisplayName,
+        });
+
+        setIsSending(true);
+        abortControllersRef.current = [];
+
+        const history = messages
+            .slice(0, assistantIndex)
+            .filter((item) => {
+                if (item.isLoading) return false;
+                if (item.role === "user") return true;
+                return item.model_id === modelId;
+            })
+            .map((item) => ({
+                role: item.role,
+                content: item.content,
+            }))
+            .slice(-20);
+
+        const controller = new AbortController();
+        abortControllersRef.current.push(controller);
+
+        try {
+            const response = await fetch(WEBHOOK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(
+                    isImageModel
+                        ? {
+                              session_id: currentSession.id,
+                              user_query: promptText,
+                              model: modelId,
+                              task_type: "image",
+                              mode: "image",
+                              image_quality:
+                                  imageOptionsByModel[modelId]?.quality ||
+                                  defaultQuality,
+                              image_size:
+                                  imageOptionsByModel[modelId]?.size ||
+                                  defaultSize,
+                              history: [],
+                              user_email: currentUser,
+                          }
+                        : {
+                              session_id: currentSession.id,
+                              user_query: promptText,
+                              model: modelId,
+                              history,
+                              user_email: currentUser,
+                              mode: requestMode,
+                          }
+                ),
+                signal: controller.signal,
+            });
+
+            const raw = await response.text();
+            const answerText = response.ok
+                ? parseResponseText(raw, response.status)
+                : raw.trim() || `Ошибка сервера. status=${response.status}`;
+
+            replaceMessageById(currentSession.id, assistantMessageId, {
+                id: assistantMessageId,
+                role: "assistant",
+                content: answerText,
+                model_id: modelId,
+                model_display_name: modelDisplayName,
+            });
+        } catch (error) {
+            const errorText =
+                error instanceof Error ? error.message : "Ошибка сети";
+
+            replaceMessageById(currentSession.id, assistantMessageId, {
+                id: assistantMessageId,
+                role: "assistant",
+                content:
+                    error instanceof DOMException && error.name === "AbortError"
+                        ? "Ответ остановлен"
+                        : `Ошибка сети: ${errorText}`,
+                model_id: modelId,
+                model_display_name: modelDisplayName,
+            });
+        } finally {
+            abortControllersRef.current = [];
+            setIsSending(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleRefreshRequest = (event: Event) => {
+            const detail = (event as CustomEvent<{ assistantMessageId?: string; modelId?: string }>).detail;
+
+            void refreshAssistantMessage(
+                String(detail?.assistantMessageId || ""),
+                String(detail?.modelId || "")
+            );
+        };
+
+        window.addEventListener(
+            "ai-answer-refresh-request",
+            handleRefreshRequest
+        );
+
+        return () => {
+            window.removeEventListener(
+                "ai-answer-refresh-request",
+                handleRefreshRequest
+            );
+        };
+    }, [activeMode, imageOptionsByModel, isSummarizing]);
 
     const sendMessage = async () => {
         const text = message.trim();
@@ -1105,6 +1329,7 @@ const PanelMessage = () => {
 
                         <div className="relative text-0">
                             <TextareaAutosize
+                                ref={textareaRef}
                                 className="w-full min-h-[40px] resize-none overflow-y-auto text-body-md leading-5 text-gray-900 outline-none placeholder:text-gray-500"
                                 minRows={2}
                                 maxRows={5}
