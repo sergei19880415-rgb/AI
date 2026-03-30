@@ -12,7 +12,7 @@ import {
     getSelectedModelKey,
     getSelectedModelsKey,
     getUiModeKey,
-} from "@/lib/chatSessionUi";
+} from "@/lib/chatUiSettings";
 
 type ChatMessage = {
     id: string;
