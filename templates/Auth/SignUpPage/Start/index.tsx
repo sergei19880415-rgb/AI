@@ -202,6 +202,7 @@ const Start = () => {
     const [agreeTerms, setAgreeTerms] = useState(false);
     const [errorText, setErrorText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [showTermsError, setShowTermsError] = useState(false);
 
     const handleSignUp = async () => {
         const cleanEmail = email.trim();
@@ -218,11 +219,14 @@ const Start = () => {
         }
 
         if (!agreeTerms) {
+            setShowTermsError(true);
             setErrorText(
                 "Подтверди согласие с Условиями и Политикой конфиденциальности"
             );
             return;
         }
+
+        setShowTermsError(false);
 
         if (cleanPassword.length < 6) {
             setErrorText("Пароль должен быть не короче 6 символов");
@@ -322,6 +326,13 @@ const Start = () => {
         }
     };
 
+    const handleTermsChange = (value: boolean) => {
+        setAgreeTerms(value);
+        if (value) {
+            setShowTermsError(false);
+        }
+    };
+
     return (
         <>
             <Head
@@ -366,12 +377,22 @@ const Start = () => {
                 <div className="mb-3 text-sm text-red-600">{errorText}</div>
             )}
 
-            <Checkbox
-                className="mb-4"
-                label="Я согласен с Условиями и Политикой конфиденциальности"
-                checked={agreeTerms}
-                onChange={() => setAgreeTerms(!agreeTerms)}
-            />
+            <div
+                className={`mb-4 rounded-xl border p-3 transition-colors ${
+                    showTermsError
+                        ? "border-red-500 bg-red-50"
+                        : "border-gray-100 bg-gray-0"
+                }`}
+            >
+                <Checkbox
+                    className="items-start"
+                    classTick={showTermsError ? "!border-red-500" : ""}
+                    classLabel={showTermsError ? "!text-red-600" : ""}
+                    label="Я согласен с Условиями и Политикой конфиденциальности"
+                    checked={agreeTerms}
+                    onChange={handleTermsChange}
+                />
+            </div>
 
             <Button
                 className="w-full mb-2"
@@ -382,8 +403,7 @@ const Start = () => {
                     isLoading ||
                     !email.trim() ||
                     !password.trim() ||
-                    !confirmPassword.trim() ||
-                    !agreeTerms
+                    !confirmPassword.trim()
                 }
             >
                 {isLoading ? "Создание аккаунта..." : "Зарегистрироваться"}
