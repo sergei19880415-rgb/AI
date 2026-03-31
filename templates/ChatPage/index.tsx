@@ -328,30 +328,28 @@ const ChatPage = () => {
         return turns;
     }, [messages]);
 
-    const getWindowMessages = (modelId: string, windowIndex: number) => {
-        const canShowOrphanTurn = windowIndex === 0;
-        const selectedModelSet = new Set(
-            modelWindows.map((item) => item.modelId).filter(Boolean)
-        );
+    const windowCount =
+        uiMode === "video"
+            ? 1
+            : uiMode === "image"
+            ? 1
+            : Math.max(modelWindows.length, parallelCount, 1);
+
+    const getWindowMessages = (modelId: string) => {
+        const isSingleWindowChat = windowCount === 1;
+
+        if (isSingleWindowChat) {
+            return messageTurns.flatMap((turn) => [turn.user, ...turn.assistants]);
+        }
 
         return messageTurns.flatMap((turn) => {
-            const hasVisibleModelAssistant = turn.assistants.some((assistant) =>
-                selectedModelSet.has(assistant.model_id || "")
-            );
-
-            const turnAssistants = turn.assistants.filter((assistant) => {
-                if (!modelId) {
-                    return canShowOrphanTurn;
-                }
-
-                return assistant.model_id === modelId;
-            });
-
-            if (canShowOrphanTurn) {
-                if (!hasVisibleModelAssistant) {
-                    return [turn.user, ...turn.assistants];
-                }
+            if (!modelId) {
+                return [];
             }
+
+            const turnAssistants = turn.assistants.filter(
+                (assistant) => assistant.model_id === modelId
+            );
 
             if (turnAssistants.length === 0) {
                 return [];
@@ -360,13 +358,6 @@ const ChatPage = () => {
             return [turn.user, ...turnAssistants];
         });
     };
-
-    const windowCount =
-        uiMode === "video"
-            ? 1
-            : uiMode === "image"
-            ? 1
-            : Math.max(modelWindows.length, parallelCount, 1);
 
     const latestAssistantMessage = [...messages]
         .reverse()
@@ -434,8 +425,7 @@ const ChatPage = () => {
                     {uiMode === "chat" &&
                         chatWindows.map((windowItem, windowIndex) => {
                             const windowMessages = getWindowMessages(
-                                windowItem.modelId,
-                                windowIndex
+                                windowItem.modelId
                             );
 
                             return (
