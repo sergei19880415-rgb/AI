@@ -13,6 +13,7 @@ const User = ({ isCollapsed }: Props) => {
     const router = useRouter();
     const rootRef = useRef<HTMLDivElement | null>(null);
     const [firstName, setFirstName] = useState("Пользователь");
+    const [userEmail, setUserEmail] = useState("");
     const [planName, setPlanName] = useState("");
     const [profileOpen, setProfileOpen] = useState(false);
     const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -20,6 +21,7 @@ const User = ({ isCollapsed }: Props) => {
     useEffect(() => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
         const savedFullName = localStorage.getItem("ai_user_name");
+        const savedEmail = localStorage.getItem("ai_user_email") || "";
         const savedPlanType = localStorage.getItem("ai_plan_type") || "";
 
         if (savedFirstName && savedFirstName.trim()) {
@@ -29,6 +31,7 @@ const User = ({ isCollapsed }: Props) => {
             setFirstName(onlyFirstName || "Пользователь");
         }
 
+        setUserEmail(savedEmail.trim());
         setPlanName(savedPlanType.trim());
     }, []);
 
@@ -53,6 +56,8 @@ const User = ({ isCollapsed }: Props) => {
         localStorage.removeItem("ai_user_name");
         localStorage.removeItem("ai_plan_type");
         localStorage.removeItem("ai_allowed_models");
+        localStorage.removeItem("ai_models_catalog");
+        localStorage.removeItem("ai_max_parallel_models");
 
         router.push("/auth/sign-in");
     };
@@ -92,14 +97,19 @@ const User = ({ isCollapsed }: Props) => {
                     </button>
 
                     {profileOpen && (
-                        <div className="absolute bottom-[calc(100%+10px)] left-0 z-30 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+                        <div className="absolute bottom-[calc(100%+10px)] left-0 z-30 w-64 rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
                             <div className="rounded-xl px-3 py-2">
                                 <div className="text-sm font-medium text-gray-900">
                                     {firstName}
                                 </div>
+                                {userEmail && (
+                                    <div className="mt-0.5 truncate text-[12px] text-gray-500">
+                                        {userEmail}
+                                    </div>
+                                )}
                                 {planName && (
-                                    <div className="mt-0.5 text-[12px] text-gray-500">
-                                        {planName}
+                                    <div className="mt-1 text-[12px] text-gray-500">
+                                        Тариф: {planName}
                                     </div>
                                 )}
                             </div>
@@ -171,11 +181,15 @@ const User = ({ isCollapsed }: Props) => {
                         <div className="truncate text-body-sm font-medium text-gray-900 transition-colors group-hover:text-primary-200">
                             {firstName}
                         </div>
-                        {planName && (
+                        {userEmail ? (
+                            <div className="truncate text-[12px] leading-4 text-gray-400 transition-colors group-hover:text-gray-500">
+                                {userEmail}
+                            </div>
+                        ) : planName ? (
                             <div className="truncate text-[12px] leading-4 text-gray-400 transition-colors group-hover:text-gray-500">
                                 {planName}
                             </div>
-                        )}
+                        ) : null}
                     </div>
 
                     <Icon
@@ -198,13 +212,18 @@ const User = ({ isCollapsed }: Props) => {
                 </button>
 
                 {profileOpen && (
-                    <div className="absolute bottom-[calc(100%+10px)] left-0 z-30 w-[240px] rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+                    <div className="absolute bottom-[calc(100%+10px)] left-0 z-30 w-[260px] rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
                         <div className="rounded-xl px-3 py-2">
                             <div className="text-sm font-medium text-gray-900">
                                 {firstName}
                             </div>
+                            {userEmail && (
+                                <div className="mt-0.5 truncate text-[12px] text-gray-500">
+                                    {userEmail}
+                                </div>
+                            )}
                             {planName && (
-                                <div className="mt-0.5 text-[12px] text-gray-500">
+                                <div className="mt-1 text-[12px] text-gray-500">
                                     Тариф: {planName}
                                 </div>
                             )}
