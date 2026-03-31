@@ -21,6 +21,8 @@ type ChatMessage = {
     isLoading?: boolean;
     model_id?: string;
     model_display_name?: string;
+    attached_file_name?: string;
+    attached_file_mime_type?: string;
 };
 
 type ChatSession = {
@@ -336,17 +338,11 @@ const ChatPage = () => {
             : Math.max(modelWindows.length, parallelCount, 1);
 
     const getWindowMessages = (modelId: string) => {
-        const isSingleWindowChat = windowCount === 1;
-
-        if (isSingleWindowChat) {
+        if (!modelId) {
             return messageTurns.flatMap((turn) => [turn.user, ...turn.assistants]);
         }
 
         return messageTurns.flatMap((turn) => {
-            if (!modelId) {
-                return [];
-            }
-
             const turnAssistants = turn.assistants.filter(
                 (assistant) => assistant.model_id === modelId
             );
@@ -472,7 +468,14 @@ const ChatPage = () => {
                                                 windowMessages.map((item) => (
                                                     <React.Fragment key={item.id}>
                                                         {item.role === "user" ? (
-                                                            <Message>
+                                                            <Message
+                                                                attachedFileName={
+                                                                    item.attached_file_name
+                                                                }
+                                                                attachedFileMimeType={
+                                                                    item.attached_file_mime_type
+                                                                }
+                                                            >
                                                                 {item.content}
                                                             </Message>
                                                         ) : (
@@ -555,7 +558,16 @@ const ChatPage = () => {
                                             return (
                                                 <React.Fragment key={item.id}>
                                                     {item.role === "user" ? (
-                                                        <Message>{item.content}</Message>
+                                                        <Message
+                                                            attachedFileName={
+                                                                item.attached_file_name
+                                                            }
+                                                            attachedFileMimeType={
+                                                                item.attached_file_mime_type
+                                                            }
+                                                        >
+                                                            {item.content}
+                                                        </Message>
                                                     ) : (
                                                         <Answer
                                                             messageId={item.id}

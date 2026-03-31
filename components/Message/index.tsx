@@ -1,14 +1,55 @@
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
-import File from "./File";
 
 type Props = {
     image?: string;
     file?: boolean;
+    attachedFileName?: string;
+    attachedFileMimeType?: string;
     children: React.ReactNode;
 };
 
-const Message = ({ image, file, children }: Props) => {
+const getAttachedFileMeta = (fileName?: string, mimeType?: string) => {
+    const ext = String(fileName || "")
+        .trim()
+        .toLowerCase()
+        .split(".")
+        .pop();
+    const mime = String(mimeType || "").trim().toLowerCase();
+
+    if (ext === "pdf" || mime.includes("pdf")) {
+        return { icon: "box-fill", iconClassName: "fill-red-500", badge: "PDF" };
+    }
+
+    if (["doc", "docx"].includes(String(ext)) || mime.includes("word")) {
+        return { icon: "copy", iconClassName: "fill-blue-500", badge: "DOC" };
+    }
+
+    if (
+        ["xls", "xlsx"].includes(String(ext)) ||
+        mime.includes("excel") ||
+        mime.includes("spreadsheet")
+    ) {
+        return { icon: "toggle", iconClassName: "fill-emerald-500", badge: "XLS" };
+    }
+
+    if (
+        ["png", "jpg", "jpeg", "webp"].includes(String(ext)) ||
+        mime.startsWith("image/")
+    ) {
+        return { icon: "gallery-fill", iconClassName: "fill-violet-500", badge: "IMG" };
+    }
+
+    return { icon: "folders", iconClassName: "fill-gray-500", badge: "FILE" };
+};
+
+const Message = ({
+    image,
+    file,
+    attachedFileName,
+    attachedFileMimeType,
+    children,
+}: Props) => {
     const contentText =
         typeof children === "string"
             ? children
@@ -46,6 +87,11 @@ const Message = ({ image, file, children }: Props) => {
             onClick: handleEdit,
         },
     ];
+    const showAttachedFile = Boolean(attachedFileName);
+    const attachedFileMeta = getAttachedFileMeta(
+        attachedFileName,
+        attachedFileMimeType
+    );
 
     return (
         <div>
@@ -69,7 +115,25 @@ const Message = ({ image, file, children }: Props) => {
                         {children}
                     </div>
 
-                    {file && <File />}
+                    {showAttachedFile && (
+                        <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] leading-none text-gray-600">
+                            <span className="inline-flex size-4 items-center justify-center rounded bg-gray-100">
+                                <Icon
+                                    className={`${attachedFileMeta.iconClassName} size-3`}
+                                    name={attachedFileMeta.icon}
+                                />
+                            </span>
+                            <span className="rounded bg-gray-100 px-1 py-0.5 font-semibold">
+                                {attachedFileMeta.badge}
+                            </span>
+                            <span className="max-w-40 truncate rounded bg-gray-100 px-1.5 py-0.5">
+                                {attachedFileName}
+                            </span>
+                        </div>
+                    )}
+                    {!showAttachedFile && file && (
+                        <div className="mt-2 text-[11px] text-gray-500">Файл</div>
+                    )}
 
                     <div className="mt-1.5 flex justify-end gap-2">
                         {actions.map((action) => (

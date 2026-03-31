@@ -11,6 +11,7 @@ export type SessionUiSettings = {
     selectedModel?: string;
     imageOptionsByModel?: Record<string, SessionImageOptionState>;
     attachedFileName?: string;
+    attachedFileMimeType?: string;
 };
 
 export const getUserEmail = () => {

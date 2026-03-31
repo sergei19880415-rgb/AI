@@ -49,6 +49,8 @@ type ChatMessage = {
     isLoading?: boolean;
     model_id?: string;
     model_display_name?: string;
+    attached_file_name?: string;
+    attached_file_mime_type?: string;
 };
 
 type ChatSession = {
@@ -461,6 +463,7 @@ const PanelMessage = () => {
     const [isUploadingFile, setIsUploadingFile] = useState(false);
     const [isFileDragActive, setIsFileDragActive] = useState(false);
     const [attachedFileName, setAttachedFileName] = useState("");
+    const [attachedFileMimeType, setAttachedFileMimeType] = useState("");
     const [attachedFileError, setAttachedFileError] = useState("");
     const [summaryOpen, setSummaryOpen] = useState(false);
     const [summaryText, setSummaryText] = useState("");
@@ -489,6 +492,7 @@ const PanelMessage = () => {
             readSessionUiSettings(sessionIdFromUrl)?.imageOptionsByModel || {}
         );
         setAttachedFileName(resolvedSettings.attachedFileName || "");
+        setAttachedFileMimeType(resolvedSettings.attachedFileMimeType || "");
         setAttachedFileError("");
         setCatalogVersion((value) => value + 1);
     }, [sessionIdFromUrl]);
@@ -723,15 +727,19 @@ const PanelMessage = () => {
             setAttachedFileName(file.name);
             writeSessionUiSettings(currentSession.id, {
                 attachedFileName: file.name,
+                attachedFileMimeType: file.type || "",
             });
+            setAttachedFileMimeType(file.type || "");
         } catch (error) {
             setAttachedFileError(
                 error instanceof Error ? error.message : "Ошибка загрузки файла"
             );
             setAttachedFileName("");
+            setAttachedFileMimeType("");
             const { currentSession } = getCurrentSession();
             writeSessionUiSettings(currentSession?.id, {
                 attachedFileName: "",
+                attachedFileMimeType: "",
             });
         } finally {
             setIsUploadingFile(false);
@@ -966,7 +974,7 @@ const PanelMessage = () => {
 
     const sendMessage = async () => {
         const text = message.trim();
-        if (!text || isSending || isSummarizing) return;
+        if (!text || isSending || isSummarizing || isUploadingFile) return;
 
         const currentUser =
             localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
@@ -1010,6 +1018,8 @@ const PanelMessage = () => {
             id: crypto.randomUUID(),
             role: "user",
             content: text,
+            attached_file_name: attachedFileName || undefined,
+            attached_file_mime_type: attachedFileMimeType || undefined,
         };
 
         const loadingMessages: ChatMessage[] = selectedModels.map((model) => ({
@@ -1239,6 +1249,9 @@ const PanelMessage = () => {
             e.preventDefault();
             if (isSending) {
                 handleStop();
+                return;
+            }
+            if (isUploadingFile) {
                 return;
             }
             sendMessage();
@@ -1472,7 +1485,9 @@ const PanelMessage = () => {
                                     onClick={isSending ? handleStop : sendMessage}
                                     disabled={
                                         !isSending &&
-                                        (!message.trim() || isSummarizing)
+                                        (!message.trim() ||
+                                            isSummarizing ||
+                                            isUploadingFile)
                                     }
                                 />
                             </div>
