@@ -196,6 +196,7 @@ const applyLoginState = (data: LoginResponse, cleanEmail: string) => {
 const Start = () => {
     const router = useRouter();
 
+    const [firstName, setFirstName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -205,11 +206,13 @@ const Start = () => {
     const [showTermsError, setShowTermsError] = useState(false);
 
     const handleSignUp = async () => {
+        const cleanFirstName = firstName.trim();
         const cleanEmail = email.trim();
         const cleanPassword = password.trim();
         const cleanConfirmPassword = confirmPassword.trim();
 
         if (
+            !cleanFirstName ||
             !cleanEmail ||
             !cleanPassword ||
             !cleanConfirmPassword ||
@@ -248,6 +251,7 @@ const Start = () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
+                    firstName: cleanFirstName,
                     email: cleanEmail,
                     password: cleanPassword,
                 }),
@@ -342,6 +346,17 @@ const Start = () => {
 
             <Field
                 className="mb-3"
+                label="Имя"
+                placeholder="Введите имя"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                required
+            />
+
+            <Field
+                className="mb-3"
                 label="Email"
                 placeholder="Введите email"
                 type="email"
@@ -401,6 +416,7 @@ const Start = () => {
                 onClick={handleSignUp}
                 disabled={
                     isLoading ||
+                    !firstName.trim() ||
                     !email.trim() ||
                     !password.trim() ||
                     !confirmPassword.trim()
