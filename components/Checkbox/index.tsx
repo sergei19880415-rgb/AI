@@ -4,6 +4,7 @@ import Icon from "@/components/Icon";
 type CheckboxProps = {
     className?: string;
     classTick?: string;
+    classLabel?: string;
     label?: string;
     checked: boolean;
     onChange: (value: boolean) => void;
@@ -12,14 +13,13 @@ type CheckboxProps = {
 const Checkbox = ({
     className,
     classTick,
+    classLabel,
     label,
     checked,
     onChange,
 }: CheckboxProps) => (
     <CheckboxHeadless
-        className={`group flex items-center gap-2 cursor-pointer ${
-            className || ""
-        }`}
+        className={`group flex items-center gap-2 cursor-pointer ${className || ""}`}
         checked={checked}
         onChange={onChange}
     >
@@ -33,7 +33,11 @@ const Checkbox = ({
                 name="check"
             />
         </span>
-        {label && <span className="text-body-sm text-gray-700">{label}</span>}
+        {label && (
+            <span className={`text-body-sm text-gray-700 ${classLabel || ""}`}>
+                {label}
+            </span>
+        )}
     </CheckboxHeadless>
 );
 
