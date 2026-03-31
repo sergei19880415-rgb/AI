@@ -104,6 +104,13 @@ export const removeSessionUiSettings = (sessionId?: string | null) => {
     localStorage.setItem(getSessionUiSettingsKey(), JSON.stringify(all));
 };
 
+export const clearSessionAttachedFileContext = (sessionId?: string | null) => {
+    writeSessionUiSettings(sessionId, {
+        attachedFileName: "",
+        attachedFileMimeType: "",
+    });
+};
+
 export const readLegacyUiSettings = (): SessionUiSettings => {
     let selectedModels: string[] = [];
 

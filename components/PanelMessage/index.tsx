@@ -27,6 +27,7 @@ import CloseLine from "./CloseLine";
 import RecreateVideo from "./RecreateVideo";
 import {
     applySessionUiSettingsToLegacyKeys,
+    clearSessionAttachedFileContext,
     readSessionUiSettings,
     writeSessionUiSettings,
 } from "@/lib/chatUiSettings";
@@ -112,22 +113,43 @@ const getFileExtension = (fileName: string) => {
     return normalized.split(".").pop() || "";
 };
 
-const getFilePreviewMeta = (fileName: string): FilePreviewMeta => {
+const getFilePreviewMeta = (
+    fileName: string,
+    mimeType?: string
+): FilePreviewMeta => {
     const ext = getFileExtension(fileName);
+    const normalizedMimeType = String(mimeType || "").trim().toLowerCase();
 
-    if (ext === "pdf") {
+    if (ext === "pdf" || normalizedMimeType === "application/pdf") {
         return { icon: "box-fill", iconClassName: "fill-red-500", badge: "PDF" };
     }
 
-    if (ext === "doc" || ext === "docx") {
+    if (
+        ext === "doc" ||
+        ext === "docx" ||
+        normalizedMimeType === "application/msword" ||
+        normalizedMimeType.includes(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    ) {
         return { icon: "copy", iconClassName: "fill-blue-500", badge: "DOC" };
     }
 
-    if (ext === "xls" || ext === "xlsx") {
+    if (
+        ext === "xls" ||
+        ext === "xlsx" ||
+        normalizedMimeType === "application/vnd.ms-excel" ||
+        normalizedMimeType.includes(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    ) {
         return { icon: "toggle", iconClassName: "fill-emerald-500", badge: "XLS" };
     }
 
-    if (["png", "jpg", "jpeg", "webp"].includes(ext)) {
+    if (
+        ["png", "jpg", "jpeg", "webp"].includes(ext) ||
+        normalizedMimeType.startsWith("image/")
+    ) {
         return { icon: "gallery-fill", iconClassName: "fill-violet-500", badge: "IMG" };
     }
 
@@ -774,6 +796,13 @@ const PanelMessage = () => {
         await uploadFile(files[0]);
     };
 
+    const handleClearFileContext = () => {
+        setAttachedFileName("");
+        setAttachedFileMimeType("");
+        setAttachedFileError("");
+        clearSessionAttachedFileContext(sessionIdFromUrl);
+    };
+
     const upsertSessionMessages = (
         sessionId: string,
         updater: (messages: ChatMessage[]) => ChatMessage[]
@@ -1268,8 +1297,8 @@ const PanelMessage = () => {
             : "Напиши вопрос...";
 
     const attachedFilePreviewMeta = useMemo(
-        () => getFilePreviewMeta(attachedFileName),
-        [attachedFileName]
+        () => getFilePreviewMeta(attachedFileName, attachedFileMimeType),
+        [attachedFileName, attachedFileMimeType]
     );
 
     return (
@@ -1424,19 +1453,31 @@ const PanelMessage = () => {
                                     <div className="text-gray-500">Файл загружается...</div>
                                 )}
                                 {!isUploadingFile && attachedFileName && (
-                                    <div className="flex items-center gap-2 text-gray-700">
-                                        <span className="inline-flex size-5 items-center justify-center rounded bg-gray-100">
-                                            <Icon
-                                                className={`${attachedFilePreviewMeta.iconClassName} size-3.5`}
-                                                name={attachedFilePreviewMeta.icon}
-                                            />
-                                        </span>
-                                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-gray-600">
-                                            {attachedFilePreviewMeta.badge}
-                                        </span>
-                                        <span className="truncate">
-                                            Файл чата: {attachedFileName}
-                                        </span>
+                                    <div className="rounded-lg border border-gray-100 bg-gray-25 p-2.5">
+                                        <div className="flex items-center gap-2 text-gray-700">
+                                            <span className="inline-flex size-5 items-center justify-center rounded bg-gray-100">
+                                                <Icon
+                                                    className={`${attachedFilePreviewMeta.iconClassName} size-3.5`}
+                                                    name={attachedFilePreviewMeta.icon}
+                                                />
+                                            </span>
+                                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-gray-600">
+                                                {attachedFilePreviewMeta.badge}
+                                            </span>
+                                            <span className="min-w-0 flex-1 truncate">
+                                                {attachedFileName}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center rounded-md border border-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                                                onClick={handleClearFileContext}
+                                            >
+                                                Очистить контекст
+                                            </button>
+                                        </div>
+                                        <div className="mt-2 text-[11px] text-gray-500">
+                                            В чате активен только один файл. Новый файл заменит текущий.
+                                        </div>
                                     </div>
                                 )}
                                 {!isUploadingFile && attachedFileError && (
