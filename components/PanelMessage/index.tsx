@@ -796,11 +796,46 @@ const PanelMessage = () => {
         await uploadFile(files[0]);
     };
 
-    const handleClearFileContext = () => {
-        setAttachedFileName("");
-        setAttachedFileMimeType("");
+    const handleClearFileContext = async () => {
+        if (!sessionIdFromUrl || isUploadingFile || isSending || isSummarizing) {
+            return;
+        }
+    
         setAttachedFileError("");
-        clearSessionAttachedFileContext(sessionIdFromUrl);
+    
+        try {
+            const currentUser =
+                localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+    
+            const response = await fetch(WEBHOOK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    session_id: sessionIdFromUrl,
+                    user_email: currentUser,
+                    clear_file_context: true,
+                }),
+            });
+    
+            const raw = await response.text();
+    
+            if (!response.ok) {
+                throw new Error(
+                    raw || `Ошибка очистки контекста. status=${response.status}`
+                );
+            }
+    
+            setAttachedFileName("");
+            setAttachedFileMimeType("");
+            setAttachedFileError("");
+            clearSessionAttachedFileContext(sessionIdFromUrl);
+        } catch (error) {
+            setAttachedFileError(
+                error instanceof Error ? error.message : "Ошибка очистки контекста"
+            );
+        }
     };
 
     const upsertSessionMessages = (
@@ -1469,8 +1504,11 @@ const PanelMessage = () => {
                                             </span>
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center rounded-md border border-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 transition-colors hover:bg-gray-100"
-                                                onClick={handleClearFileContext}
+                                                className="inline-flex items-center rounded-md border border-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                                onClick={() => {
+                                                    void handleClearFileContext();
+                                                }}
+                                                disabled={isUploadingFile || isSending || isSummarizing}
                                             >
                                                 Очистить контекст
                                             </button>
