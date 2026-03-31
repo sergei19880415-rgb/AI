@@ -100,18 +100,24 @@ const toRegisterResponse = (value: unknown): RegisterResponse | null => {
     };
 };
 
-const applyLoginState = (data: LoginResponse, cleanEmail: string) => {
+const applyLoginState = (
+    data: LoginResponse,
+    cleanEmail: string,
+    fallbackFirstName = ""
+) => {
+    const resolvedFirstName = (
+        data.firstName ||
+        fallbackFirstName ||
+        localStorage.getItem("ai_user_first_name") ||
+        ""
+    ).trim();
+
+    const resolvedLastName = (data.lastName || "").trim();
+    const resolvedFullName = `${resolvedFirstName} ${resolvedLastName}`.trim();
+
     localStorage.setItem("ai_user_email", cleanEmail);
-
-    localStorage.setItem(
-        "ai_user_first_name",
-        (data.firstName || "").trim()
-    );
-
-    localStorage.setItem(
-        "ai_user_name",
-        `${data.firstName || ""} ${data.lastName || ""}`.trim()
-    );
+    localStorage.setItem("ai_user_first_name", resolvedFirstName);
+    localStorage.setItem("ai_user_name", resolvedFullName);
 
     localStorage.setItem(
         "ai_plan_type",
@@ -279,6 +285,9 @@ const Start = () => {
                 return;
             }
 
+            localStorage.setItem("ai_user_first_name", cleanFirstName);
+            localStorage.setItem("ai_user_name", cleanFirstName);
+
             const loginResponse = await fetch(LOGIN_WEBHOOK_URL, {
                 method: "POST",
                 headers: {
@@ -310,7 +319,7 @@ const Start = () => {
                 return;
             }
 
-            applyLoginState(loginData, cleanEmail);
+            applyLoginState(loginData, cleanEmail, cleanFirstName);
             localStorage.setItem("ai_remember_email", cleanEmail);
 
             router.push("/chat");
