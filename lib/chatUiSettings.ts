@@ -10,6 +10,7 @@ export type SessionUiSettings = {
     selectedModels?: string[];
     selectedModel?: string;
     imageOptionsByModel?: Record<string, SessionImageOptionState>;
+    attachedFileName?: string;
 };
 
 export const getUserEmail = () => {

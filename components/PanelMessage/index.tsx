@@ -98,6 +98,40 @@ type ImageOptionState = {
     size: string;
 };
 
+type FilePreviewMeta = {
+    icon: string;
+    iconClassName: string;
+    badge: string;
+};
+
+const getFileExtension = (fileName: string) => {
+    const normalized = String(fileName || "").trim().toLowerCase();
+    if (!normalized.includes(".")) return "";
+    return normalized.split(".").pop() || "";
+};
+
+const getFilePreviewMeta = (fileName: string): FilePreviewMeta => {
+    const ext = getFileExtension(fileName);
+
+    if (ext === "pdf") {
+        return { icon: "box-fill", iconClassName: "fill-red-500", badge: "PDF" };
+    }
+
+    if (ext === "doc" || ext === "docx") {
+        return { icon: "copy", iconClassName: "fill-blue-500", badge: "DOC" };
+    }
+
+    if (ext === "xls" || ext === "xlsx") {
+        return { icon: "toggle", iconClassName: "fill-emerald-500", badge: "XLS" };
+    }
+
+    if (["png", "jpg", "jpeg", "webp"].includes(ext)) {
+        return { icon: "gallery-fill", iconClassName: "fill-violet-500", badge: "IMG" };
+    }
+
+    return { icon: "folders", iconClassName: "fill-gray-500", badge: "FILE" };
+};
+
 const getUserEmail = () => {
     return (localStorage.getItem("ai_user_email") || "guest").trim();
 };
@@ -454,6 +488,8 @@ const PanelMessage = () => {
         setImageOptionsByModel(
             readSessionUiSettings(sessionIdFromUrl)?.imageOptionsByModel || {}
         );
+        setAttachedFileName(resolvedSettings.attachedFileName || "");
+        setAttachedFileError("");
         setCatalogVersion((value) => value + 1);
     }, [sessionIdFromUrl]);
 
@@ -685,11 +721,18 @@ const PanelMessage = () => {
             }
 
             setAttachedFileName(file.name);
+            writeSessionUiSettings(currentSession.id, {
+                attachedFileName: file.name,
+            });
         } catch (error) {
             setAttachedFileError(
                 error instanceof Error ? error.message : "Ошибка загрузки файла"
             );
             setAttachedFileName("");
+            const { currentSession } = getCurrentSession();
+            writeSessionUiSettings(currentSession?.id, {
+                attachedFileName: "",
+            });
         } finally {
             setIsUploadingFile(false);
         }
@@ -1211,6 +1254,11 @@ const PanelMessage = () => {
             ? "Опиши видео..."
             : "Напиши вопрос...";
 
+    const attachedFilePreviewMeta = useMemo(
+        () => getFilePreviewMeta(attachedFileName),
+        [attachedFileName]
+    );
+
     return (
         <>
             <div className="relative z-2 mx-auto w-full max-w-258">
@@ -1363,7 +1411,20 @@ const PanelMessage = () => {
                                     <div className="text-gray-500">Файл загружается...</div>
                                 )}
                                 {!isUploadingFile && attachedFileName && (
-                                    <div className="text-gray-700">Файл чата: {attachedFileName}</div>
+                                    <div className="flex items-center gap-2 text-gray-700">
+                                        <span className="inline-flex size-5 items-center justify-center rounded bg-gray-100">
+                                            <Icon
+                                                className={`${attachedFilePreviewMeta.iconClassName} size-3.5`}
+                                                name={attachedFilePreviewMeta.icon}
+                                            />
+                                        </span>
+                                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-gray-600">
+                                            {attachedFilePreviewMeta.badge}
+                                        </span>
+                                        <span className="truncate">
+                                            Файл чата: {attachedFileName}
+                                        </span>
+                                    </div>
                                 )}
                                 {!isUploadingFile && attachedFileError && (
                                     <div className="text-red-500">{attachedFileError}</div>
