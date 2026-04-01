@@ -109,7 +109,7 @@ const User = ({ isCollapsed }: Props) => {
                                 )}
                                 {planName && (
                                     <div className="mt-1 text-[12px] text-gray-500">
-                                        Тариф: {planName}
+                                        {planName}
                                     </div>
                                 )}
                             </div>
@@ -183,7 +183,7 @@ const User = ({ isCollapsed }: Props) => {
                         </div>
                         {planName && (
                             <div className="truncate text-[12px] leading-4 text-gray-400 transition-colors group-hover:text-gray-500">
-                                Тариф: {planName}
+                                {planName}
                             </div>
                         )}
                     </div>
@@ -220,7 +220,7 @@ const User = ({ isCollapsed }: Props) => {
                             )}
                             {planName && (
                                 <div className="mt-1 text-[12px] text-gray-500">
-                                    Тариф: {planName}
+                                    {planName}
                                 </div>
                             )}
                         </div>
