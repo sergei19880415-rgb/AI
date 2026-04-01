@@ -3,16 +3,21 @@
 import { useEffect, useState } from "react";
 import Button from "@/components/Button";
 import TextInputDialog from "@/components/TextInputDialog";
+import PasswordChangeDialog from "@/components/PasswordChangeDialog";
 import TabContainer from "../TabContainer";
 import Line from "../Line";
 
 const UPDATE_NAME_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-name";
+const UPDATE_PASSWORD_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-password";
 
 const Account = () => {
     const [nameDialogOpen, setNameDialogOpen] = useState(false);
+    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [firstName, setFirstName] = useState("Пользователь");
     const [userEmail, setUserEmail] = useState("");
     const [isSavingName, setIsSavingName] = useState(false);
+    const [isSavingPassword, setIsSavingPassword] = useState(false);
+    const [passwordError, setPasswordError] = useState("");
 
     useEffect(() => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
@@ -86,6 +91,81 @@ const Account = () => {
         }
     };
 
+    const handleSavePassword = async (values: {
+        currentPassword: string;
+        newPassword: string;
+        confirmPassword: string;
+    }) => {
+        const cleanEmail = userEmail.trim();
+        const currentPassword = values.currentPassword.trim();
+        const newPassword = values.newPassword.trim();
+        const confirmPassword = values.confirmPassword.trim();
+
+        if (!cleanEmail || !currentPassword || !newPassword || !confirmPassword) {
+            setPasswordError("Заполни все поля");
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            setPasswordError("Новый пароль должен быть не короче 6 символов");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordError("Новые пароли не совпадают");
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            setPasswordError("Новый пароль должен отличаться от текущего");
+            return;
+        }
+
+        setIsSavingPassword(true);
+        setPasswordError("");
+
+        try {
+            const response = await fetch(UPDATE_PASSWORD_WEBHOOK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: cleanEmail,
+                    oldPassword: currentPassword,
+                    newPassword: newPassword,
+                }),
+            });
+
+            const raw = await response.text();
+
+            let parsed: {
+                success?: boolean;
+                message?: string;
+            } | null = null;
+
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                setPasswordError("Сервер вернул непонятный ответ");
+                return;
+            }
+
+            if (!response.ok || !parsed?.success) {
+                setPasswordError(parsed?.message || "Не удалось обновить пароль");
+                return;
+            }
+
+            setPasswordDialogOpen(false);
+            setPasswordError("");
+            alert("Пароль обновлён");
+        } catch {
+            setPasswordError("Ошибка сети или CORS");
+        } finally {
+            setIsSavingPassword(false);
+        }
+    };
+
     return (
         <>
             <TabContainer title="Account">
@@ -114,10 +194,18 @@ const Account = () => {
 
                 <Line
                     title="Password"
-                    description="Update your password to maintain account security."
+                    description="Измени пароль для входа в аккаунт."
                 >
-                    <Button className="!text-[1rem]" isSecondary isSmall>
-                        Change password
+                    <Button
+                        className="!text-[1rem]"
+                        isSecondary
+                        isSmall
+                        onClick={() => {
+                            setPasswordError("");
+                            setPasswordDialogOpen(true);
+                        }}
+                    >
+                        {isSavingPassword ? "Saving..." : "Change password"}
                     </Button>
                 </Line>
 
@@ -162,6 +250,17 @@ const Account = () => {
                 initialValue={firstName}
                 confirmLabel="Save"
                 onConfirm={handleSaveName}
+            />
+
+            <PasswordChangeDialog
+                open={passwordDialogOpen}
+                onClose={() => {
+                    setPasswordDialogOpen(false);
+                    setPasswordError("");
+                }}
+                onConfirm={handleSavePassword}
+                isLoading={isSavingPassword}
+                errorText={passwordError}
             />
         </>
     );
