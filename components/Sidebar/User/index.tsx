@@ -18,7 +18,7 @@ const User = ({ isCollapsed }: Props) => {
     const [profileOpen, setProfileOpen] = useState(false);
     const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
-    useEffect(() => {
+    const loadProfileFromStorage = () => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
         const savedFullName = localStorage.getItem("ai_user_name");
         const savedEmail = localStorage.getItem("ai_user_email") || "";
@@ -29,10 +29,29 @@ const User = ({ isCollapsed }: Props) => {
         } else if (savedFullName && savedFullName.trim()) {
             const onlyFirstName = savedFullName.trim().split(" ")[0];
             setFirstName(onlyFirstName || "Пользователь");
+        } else {
+            setFirstName("Пользователь");
         }
 
         setUserEmail(savedEmail.trim());
         setPlanName(savedPlanType.trim());
+    };
+
+    useEffect(() => {
+        loadProfileFromStorage();
+
+        const handleProfileUpdate = () => {
+            loadProfileFromStorage();
+        };
+
+        window.addEventListener("ai-user-profile-updated", handleProfileUpdate);
+
+        return () => {
+            window.removeEventListener(
+                "ai-user-profile-updated",
+                handleProfileUpdate
+            );
+        };
     }, []);
 
     useEffect(() => {
