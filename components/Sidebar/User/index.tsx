@@ -181,15 +181,11 @@ const User = ({ isCollapsed }: Props) => {
                         <div className="truncate text-body-sm font-medium text-gray-900 transition-colors group-hover:text-primary-200">
                             {firstName}
                         </div>
-                        {userEmail ? (
+                        {planName && (
                             <div className="truncate text-[12px] leading-4 text-gray-400 transition-colors group-hover:text-gray-500">
-                                {userEmail}
+                                Тариф: {planName}
                             </div>
-                        ) : planName ? (
-                            <div className="truncate text-[12px] leading-4 text-gray-400 transition-colors group-hover:text-gray-500">
-                                {planName}
-                            </div>
-                        ) : null}
+                        )}
                     </div>
 
                     <Icon
