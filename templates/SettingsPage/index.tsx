@@ -22,42 +22,42 @@ const SettingsPage = () => {
     const items = [
         {
             id: 0,
-            title: "General",
+            title: "Общие",
         },
         {
             id: 1,
-            title: "Notifications",
+            title: "Уведомления",
         },
         {
             id: 2,
-            title: "Personalization",
+            title: "Персонализация",
         },
         {
             id: 3,
-            title: "Pricing",
+            title: "Тарифы",
         },
         {
             id: 4,
-            title: "Security",
+            title: "Безопасность",
         },
         {
             id: 5,
-            title: "Account",
+            title: "Аккаунт",
         },
     ];
 
     return (
         <Layout
             classWrapper="wrapper py-10 max-md:py-8"
-            title="Settings"
+            title="Настройки"
             hidePanelMessage
         >
             <div className="max-w-258 mx-auto">
                 <div className="mb-12 text-center max-md:mb-0">
-                    <div className="mb-3 text-h4">Chat Experience Settings</div>
+                    <div className="mb-3 text-h4">Настройки AI-агрегатора</div>
                     <div className="mb-6 text-gray-500 max-md:mb-0">
-                        Personalize your chat, voice, and visuals for the best
-                        AI experience.
+                        Управляйте внешним видом, безопасностью и параметрами
+                        аккаунта в одном месте.
                     </div>
                     <div className="max-md:-mx-4 max-md:p-4 max-md:overflow-x-auto max-md:scrollbar-none">
                         <div className="inline-flex bg-gray-25 rounded-lg">
@@ -82,7 +82,7 @@ const SettingsPage = () => {
                 {activeId === 2 && <Personalization />}
                 {activeId === 3 && <Pricing />}
                 {activeId === 4 && <Security />}
-                {activeId === 5 && <Account />}
+                {activeId === 5 && <Account onOpenPricing={() => setActiveId(3)} />}
             </div>
         </Layout>
     );
