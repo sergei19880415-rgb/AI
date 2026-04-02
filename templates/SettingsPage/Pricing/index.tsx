@@ -6,8 +6,8 @@ import Button from "@/components/Button";
 import { pricing } from "./pricing";
 
 const tabs = [
-    { id: 0, name: "Personal" },
-    { id: 1, name: "Bussiness", sale: "15% Off" },
+    { id: 0, name: "Для себя" },
+    { id: 1, name: "Для команды", sale: "−15%" },
 ];
 
 const Pricing = ({}) => {
@@ -16,7 +16,7 @@ const Pricing = ({}) => {
     return (
         <div className="-mx-10 max-2xl:mx-0">
             <div className="flex justify-between items-center -mt-4 mb-8 max-md:flex-col max-md:gap-2.5 max-md:mb-6 max-md:mt-2">
-                <div className="text-h5">Reccomended plan for you</div>
+                <div className="text-h5">Подберите подходящий тариф</div>
                 <div className="relative w-72">
                     <Tabs items={tabs} value={tab} setValue={setTab} />
                 </div>
@@ -29,7 +29,7 @@ const Pricing = ({}) => {
                     >
                         <div className="flex items-center gap-3 h-14 mb-1 px-4">
                             <div className="text-h5">{item.name}</div>
-                            {item.name === "PLUS" && (
+                            {item.name === "Плюс" && (
                                 <div className="relative px-2.5 py-1.5 rounded-full overflow-hidden text-body-xs font-medium text-gray-0">
                                     <Image
                                         className="opacity-100 object-cover"
@@ -38,16 +38,16 @@ const Pricing = ({}) => {
                                         alt=""
                                     />
                                     <span className="relative z-1">
-                                        RECOMMENDATION
+                                        РЕКОМЕНДУЕМ
                                     </span>
                                 </div>
                             )}
                         </div>
                         <div className="grow p-4 pb-8 rounded-xl bg-gray-0 shadow-[inset_0_0_0_0.0625rem_#E2E2EE]">
                             <div className="flex items-center h-12 mb-5 max-md:mb-3">
-                                {item.price === "Free" ? (
+                                {item.price === "Бесплатно" ? (
                                     <div className="text-[2rem] leading-[1.2] tracking-[-0.03em] font-medium">
-                                        Free
+                                        Бесплатно
                                     </div>
                                 ) : (
                                     <>
@@ -57,7 +57,7 @@ const Pricing = ({}) => {
                                                 : item.priceBusiness}
                                         </div>
                                         <div className="relative -bottom-1 ml-0.5 text-[#777777]">
-                                            / Month
+                                            / мес.
                                         </div>
                                     </>
                                 )}
@@ -72,9 +72,9 @@ const Pricing = ({}) => {
                             >
                                 {item.buttonText}
                             </Button>
-                            {item.name !== "Starter" && (
+                            {item.name !== "Старт" && (
                                 <div className="mb-3 text-[#777777]">
-                                    Everything in Free, and:
+                                    Всё из базового тарифа, плюс:
                                 </div>
                             )}
                             <div className="flex flex-col gap-3">

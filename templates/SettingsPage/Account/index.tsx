@@ -10,14 +10,20 @@ import Line from "../Line";
 const UPDATE_NAME_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-name";
 const UPDATE_PASSWORD_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-password";
 
-const Account = () => {
+type Props = {
+    onOpenPricing: () => void;
+};
+
+const Account = ({ onOpenPricing }: Props) => {
     const [nameDialogOpen, setNameDialogOpen] = useState(false);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+    const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
     const [firstName, setFirstName] = useState("Пользователь");
     const [userEmail, setUserEmail] = useState("");
     const [isSavingName, setIsSavingName] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [passwordError, setPasswordError] = useState("");
+    const [passwordSuccess, setPasswordSuccess] = useState("");
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -169,7 +175,7 @@ const Account = () => {
             }
 
             resetPasswordDialog();
-            alert("Пароль обновлён");
+            setPasswordSuccess("Пароль успешно обновлён");
         } catch {
             setPasswordError("Ошибка сети или CORS");
         } finally {
@@ -179,39 +185,33 @@ const Account = () => {
 
     return (
         <>
-            <TabContainer title="Account">
-                <Line
-                    title="Display Name"
-                    description={`Текущее имя: ${firstName}`}
-                >
+            <TabContainer title="Аккаунт">
+                {passwordSuccess && (
+                    <div className="mb-1 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-[14px] text-green-700">
+                        {passwordSuccess}
+                    </div>
+                )}
+
+                <Line title="Имя" description={`Текущее имя: ${firstName}`}>
                     <Button
                         className="!text-[1rem]"
                         isSecondary
                         isSmall
                         onClick={() => setNameDialogOpen(true)}
                     >
-                        {isSavingName ? "Saving..." : "Edit name"}
+                        {isSavingName ? "Сохранение..." : "Изменить имя"}
                     </Button>
                 </Line>
 
-                <Line
-                    title="Email Address"
-                    description={userEmail || "No email"}
-                >
-                    <Button className="!text-[1rem]" isSecondary isSmall>
-                        Change email
-                    </Button>
-                </Line>
+                <Line title="Почта" description={userEmail || "Не указана"} />
 
-                <Line
-                    title="Password"
-                    description="Измени пароль для входа в аккаунт."
-                >
+                <Line title="Пароль" description="Измени пароль для входа в аккаунт.">
                     <Button
                         className="!text-[1rem]"
                         isSecondary
                         isSmall
                         onClick={() => {
+                            setPasswordSuccess("");
                             setPasswordError("");
                             setCurrentPassword("");
                             setNewPassword("");
@@ -219,38 +219,35 @@ const Account = () => {
                             setPasswordDialogOpen(true);
                         }}
                     >
-                        {isSavingPassword ? "Saving..." : "Change password"}
+                        {isSavingPassword ? "Сохранение..." : "Изменить пароль"}
                     </Button>
                 </Line>
 
                 <Line
-                    title="Linked Accounts"
-                    description="Connect or disconnect your external accounts (e.g. Google, GitHub)."
+                    title="Тариф"
+                    description="Посмотрите возможности текущего тарифа или выберите более подходящий."
                 >
-                    <Button className="!text-[1rem]" isSecondary isSmall>
-                        Manage
+                    <Button
+                        className="!text-[1rem]"
+                        isSecondary
+                        isSmall
+                        onClick={onOpenPricing}
+                    >
+                        Открыть тарифы
                     </Button>
                 </Line>
 
                 <Line
-                    title="Subscription Plan"
-                    description="View or upgrade your current Zyra plan to access premium features."
-                >
-                    <Button className="!text-[1rem]" isSecondary isSmall>
-                        View Plan
-                    </Button>
-                </Line>
-
-                <Line
-                    title="Delete Account"
-                    description="Permanently remove your Zyra account and all associated data."
+                    title="Деактивировать аккаунт"
+                    description="Временно ограничить доступ к аккаунту. На текущем этапе это интерфейс подтверждения без отправки на сервер."
                 >
                     <Button
                         className="!text-[1rem] !shadow-[inset_0_0_0_0.0625rem_#D73E3D] !text-error-100 hover:!bg-error-100 hover:!text-gray-0"
                         isSecondary
                         isSmall
+                        onClick={() => setDeactivateDialogOpen(true)}
                     >
-                        Delete Account
+                        Деактивировать аккаунт
                     </Button>
                 </Line>
             </TabContainer>
@@ -258,11 +255,11 @@ const Account = () => {
             <TextInputDialog
                 open={nameDialogOpen}
                 onClose={() => setNameDialogOpen(false)}
-                title="Edit name"
+                title="Изменить имя"
                 label="Введите новое имя"
                 placeholder="Например, Серж"
                 initialValue={firstName}
-                confirmLabel="Save"
+                confirmLabel="Сохранить"
                 onConfirm={handleSaveName}
             />
 
@@ -274,7 +271,7 @@ const Account = () => {
             >
                 <div className="pr-10">
                     <div className="text-[20px] font-semibold leading-7 text-gray-900">
-                        Change password
+                        Смена пароля
                     </div>
                     <div className="mt-2 text-[13px] leading-5 text-gray-500">
                         Введи текущий пароль и два раза новый пароль.
@@ -339,7 +336,42 @@ const Account = () => {
                             !confirmPassword.trim()
                         }
                     >
-                        {isSavingPassword ? "Saving..." : "Save"}
+                        {isSavingPassword ? "Сохранение..." : "Сохранить"}
+                    </button>
+                </div>
+            </Modal>
+
+            <Modal
+                open={deactivateDialogOpen}
+                onClose={() => setDeactivateDialogOpen(false)}
+                classWrapper="relative w-full max-w-[30rem] rounded-[1.5rem] border border-gray-100 bg-white px-6 py-6 shadow-[0_24px_64px_rgba(17,12,46,0.16)]"
+                classButtonClose="!top-4 !right-4 !size-10 bg-gray-25 hover:bg-gray-50 [&_svg]:!size-5"
+            >
+                <div className="pr-10">
+                    <div className="text-[20px] font-semibold leading-7 text-gray-900">
+                        Деактивация аккаунта
+                    </div>
+                    <div className="mt-2 text-[13px] leading-5 text-gray-500">
+                        Вы уверены, что хотите деактивировать аккаунт? Сейчас это
+                        только UI-подтверждение: действие не отправляется на
+                        сервер.
+                    </div>
+                </div>
+
+                <div className="mt-6 flex items-center justify-end gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setDeactivateDialogOpen(false)}
+                        className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 bg-white px-5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setDeactivateDialogOpen(false)}
+                        className="inline-flex h-11 items-center justify-center rounded-xl bg-error-100 px-5 text-[14px] font-medium text-white transition-colors hover:opacity-90"
+                    >
+                        Подтвердить
                     </button>
                 </div>
             </Modal>

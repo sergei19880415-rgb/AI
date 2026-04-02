@@ -4,24 +4,14 @@ import TabContainer from "../TabContainer";
 import Line from "../Line";
 
 const Notifications = ({}) => {
-    const [newMessageAlerts, setNewMessageAlerts] = useState(true);
     const [responseCompleted, setResponseCompleted] = useState(true);
     const [fileUploadStatus, setFileUploadStatus] = useState(true);
 
     return (
-        <TabContainer title="Notification Setting">
+        <TabContainer title="Уведомления">
             <Line
-                title="New Message Alerts"
-                description="Get notified when a new message or response is generated."
-            >
-                <Switch
-                    checked={newMessageAlerts}
-                    onChange={setNewMessageAlerts}
-                />
-            </Line>
-            <Line
-                title="Response Completed"
-                description="Receive an alert when a long generation or file task is finished."
+                title="Завершение ответа"
+                description="Показывать уведомление, когда AI завершил ответ."
             >
                 <Switch
                     checked={responseCompleted}
@@ -29,8 +19,8 @@ const Notifications = ({}) => {
                 />
             </Line>
             <Line
-                title="File Upload Status"
-                description="Be notified when your file has been successfully uploaded or processed."
+                title="Завершение обработки файла"
+                description="Показывать уведомление после обработки загруженного файла."
             >
                 <Switch
                     checked={fileUploadStatus}
