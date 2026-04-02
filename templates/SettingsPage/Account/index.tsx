@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Button from "@/components/Button";
 import TextInputDialog from "@/components/TextInputDialog";
-import PasswordChangeDialog from "@/components/PasswordChangeDialog";
+import Modal from "@/components/Modal";
 import TabContainer from "../TabContainer";
 import Line from "../Line";
 
@@ -18,6 +18,9 @@ const Account = () => {
     const [isSavingName, setIsSavingName] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [passwordError, setPasswordError] = useState("");
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
 
     useEffect(() => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
@@ -33,6 +36,14 @@ const Account = () => {
 
         setUserEmail(savedEmail.trim());
     }, []);
+
+    const resetPasswordDialog = () => {
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setPasswordError("");
+        setPasswordDialogOpen(false);
+    };
 
     const handleSaveName = async (nextName: string) => {
         const cleanName = nextName.trim();
@@ -91,32 +102,33 @@ const Account = () => {
         }
     };
 
-    const handleSavePassword = async (values: {
-        currentPassword: string;
-        newPassword: string;
-        confirmPassword: string;
-    }) => {
+    const handleSavePassword = async () => {
         const cleanEmail = userEmail.trim();
-        const currentPassword = values.currentPassword.trim();
-        const newPassword = values.newPassword.trim();
-        const confirmPassword = values.confirmPassword.trim();
+        const cleanCurrentPassword = currentPassword.trim();
+        const cleanNewPassword = newPassword.trim();
+        const cleanConfirmPassword = confirmPassword.trim();
 
-        if (!cleanEmail || !currentPassword || !newPassword || !confirmPassword) {
+        if (
+            !cleanEmail ||
+            !cleanCurrentPassword ||
+            !cleanNewPassword ||
+            !cleanConfirmPassword
+        ) {
             setPasswordError("Заполни все поля");
             return;
         }
 
-        if (newPassword.length < 6) {
+        if (cleanNewPassword.length < 6) {
             setPasswordError("Новый пароль должен быть не короче 6 символов");
             return;
         }
 
-        if (newPassword !== confirmPassword) {
+        if (cleanNewPassword !== cleanConfirmPassword) {
             setPasswordError("Новые пароли не совпадают");
             return;
         }
 
-        if (currentPassword === newPassword) {
+        if (cleanCurrentPassword === cleanNewPassword) {
             setPasswordError("Новый пароль должен отличаться от текущего");
             return;
         }
@@ -132,8 +144,8 @@ const Account = () => {
                 },
                 body: JSON.stringify({
                     email: cleanEmail,
-                    oldPassword: currentPassword,
-                    newPassword: newPassword,
+                    oldPassword: cleanCurrentPassword,
+                    newPassword: cleanNewPassword,
                 }),
             });
 
@@ -156,8 +168,7 @@ const Account = () => {
                 return;
             }
 
-            setPasswordDialogOpen(false);
-            setPasswordError("");
+            resetPasswordDialog();
             alert("Пароль обновлён");
         } catch {
             setPasswordError("Ошибка сети или CORS");
@@ -202,6 +213,9 @@ const Account = () => {
                         isSmall
                         onClick={() => {
                             setPasswordError("");
+                            setCurrentPassword("");
+                            setNewPassword("");
+                            setConfirmPassword("");
                             setPasswordDialogOpen(true);
                         }}
                     >
@@ -252,16 +266,83 @@ const Account = () => {
                 onConfirm={handleSaveName}
             />
 
-            <PasswordChangeDialog
+            <Modal
                 open={passwordDialogOpen}
-                onClose={() => {
-                    setPasswordDialogOpen(false);
-                    setPasswordError("");
-                }}
-                onConfirm={handleSavePassword}
-                isLoading={isSavingPassword}
-                errorText={passwordError}
-            />
+                onClose={resetPasswordDialog}
+                classWrapper="relative w-full max-w-[30rem] rounded-[1.5rem] border border-gray-100 bg-white px-6 py-6 shadow-[0_24px_64px_rgba(17,12,46,0.16)]"
+                classButtonClose="!top-4 !right-4 !size-10 bg-gray-25 hover:bg-gray-50 [&_svg]:!size-5"
+            >
+                <div className="pr-10">
+                    <div className="text-[20px] font-semibold leading-7 text-gray-900">
+                        Change password
+                    </div>
+                    <div className="mt-2 text-[13px] leading-5 text-gray-500">
+                        Введи текущий пароль и два раза новый пароль.
+                    </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                    <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(event) => setCurrentPassword(event.target.value)}
+                        placeholder="Текущий пароль"
+                        className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-primary-200"
+                        autoFocus
+                    />
+
+                    <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                        placeholder="Новый пароль"
+                        className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-primary-200"
+                    />
+
+                    <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleSavePassword();
+                            }
+                        }}
+                        placeholder="Повтори новый пароль"
+                        className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-primary-200"
+                    />
+                </div>
+
+                {passwordError && (
+                    <div className="mt-3 text-[13px] leading-5 text-red-600">
+                        {passwordError}
+                    </div>
+                )}
+
+                <div className="mt-6 flex items-center justify-end gap-3">
+                    <button
+                        type="button"
+                        onClick={resetPasswordDialog}
+                        className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 bg-white px-5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void handleSavePassword()}
+                        className="inline-flex h-11 items-center justify-center rounded-xl bg-primary-300 px-5 text-[14px] font-medium text-white shadow-[0_10px_24px_rgba(123,58,237,0.24)] transition-colors hover:bg-primary-200 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={
+                            isSavingPassword ||
+                            !currentPassword.trim() ||
+                            !newPassword.trim() ||
+                            !confirmPassword.trim()
+                        }
+                    >
+                        {isSavingPassword ? "Saving..." : "Save"}
+                    </button>
+                </div>
+            </Modal>
         </>
     );
 };
