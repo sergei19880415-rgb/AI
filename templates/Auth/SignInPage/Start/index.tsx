@@ -32,6 +32,8 @@ type LoginResponse = {
     allowedModels?: string;
     maxParallelModels?: number | string;
     modelsCatalog?: ModelCatalogItem[];
+    sessionToken?: string;
+    sessionExpiresAt?: string;
     message?: string;
 };
 
@@ -83,6 +85,14 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
         modelsCatalog: Array.isArray(value.modelsCatalog)
             ? (value.modelsCatalog as ModelCatalogItem[])
             : undefined,
+        sessionToken:
+            typeof value.sessionToken === "string"
+                ? value.sessionToken
+                : undefined,
+        sessionExpiresAt:
+            typeof value.sessionExpiresAt === "string"
+                ? value.sessionExpiresAt
+                : undefined,
         message:
             typeof value.message === "string" ? value.message : undefined,
     };
@@ -148,6 +158,14 @@ const Start = ({ onContinueWithEmail }: Props) => {
 
             if (data.success) {
                 localStorage.setItem("ai_user_email", cleanEmail);
+                localStorage.setItem(
+                    "ai_session_token",
+                    data.sessionToken || ""
+                );
+                localStorage.setItem(
+                    "ai_session_expires_at",
+                    data.sessionExpiresAt || ""
+                );
 
                 localStorage.setItem(
                     "ai_user_first_name",
