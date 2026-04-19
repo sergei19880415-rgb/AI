@@ -163,6 +163,11 @@ const getUserEmail = () => {
         .toLowerCase();
 };
 
+const getSessionToken = () => {
+    if (typeof window === "undefined") return "";
+    return (localStorage.getItem("ai_session_token") || "").toString().trim();
+};
+
 const getUserStorageKey = () => {
     return getUserEmail() || "unauthorized";
 };
@@ -175,6 +180,17 @@ const requireUserEmail = () => {
     }
 
     window.alert("Сессия не найдена. Войди в аккаунт заново.");
+    return null;
+};
+
+const requireSessionToken = () => {
+    const token = getSessionToken();
+
+    if (token) {
+        return token;
+    }
+
+    window.alert("Сессия авторизации не найдена. Войди в аккаунт заново.");
     return null;
 };
 
@@ -745,12 +761,15 @@ const PanelMessage = () => {
         try {
             const currentUser = requireUserEmail();
             if (!currentUser) return;
+            const sessionToken = requireSessionToken();
+            if (!sessionToken) return;
 
             const currentSession = ensureCurrentSession();
             const formData = new FormData();
 
             formData.append("session_id", currentSession.id);
             formData.append("user_email", currentUser);
+            formData.append("session_token", sessionToken);
             formData.append("data", file);
 
             const response = await fetch(FILE_UPLOAD_WEBHOOK_URL, {
@@ -825,6 +844,8 @@ const PanelMessage = () => {
         try {
             const currentUser = requireUserEmail();
             if (!currentUser) return;
+            const sessionToken = requireSessionToken();
+            if (!sessionToken) return;
 
             const response = await fetch(WEBHOOK_URL, {
                 method: "POST",
@@ -834,6 +855,7 @@ const PanelMessage = () => {
                 body: JSON.stringify({
                     session_id: sessionIdFromUrl,
                     user_email: currentUser,
+                    session_token: sessionToken,
                     clear_file_context: true,
                 }),
             });
@@ -897,6 +919,8 @@ const PanelMessage = () => {
 
         const currentUser = requireUserEmail();
         if (!currentUser) return;
+        const sessionToken = requireSessionToken();
+        if (!sessionToken) return;
 
         const { currentSession } = getCurrentSession();
 
@@ -988,6 +1012,7 @@ const PanelMessage = () => {
                                   defaultSize,
                               history: [],
                               user_email: currentUser,
+                              session_token: sessionToken,
                           }
                         : {
                               session_id: currentSession.id,
@@ -995,6 +1020,7 @@ const PanelMessage = () => {
                               model: modelId,
                               history,
                               user_email: currentUser,
+                              session_token: sessionToken,
                               mode: requestMode,
                           }
                 ),
@@ -1062,6 +1088,8 @@ const PanelMessage = () => {
 
         const currentUser = requireUserEmail();
         if (!currentUser) return;
+        const sessionToken = requireSessionToken();
+        if (!sessionToken) return;
 
         const selectedModels = visibleModels;
         const requestMode = activeMode;
@@ -1192,6 +1220,7 @@ const PanelMessage = () => {
                                                   ?.size || model.defaultSize,
                                           history: [],
                                           user_email: currentUser,
+                                          session_token: sessionToken,
                                       }
                                     : {
                                           session_id: currentSession.id,
@@ -1199,6 +1228,7 @@ const PanelMessage = () => {
                                           model: model.modelId,
                                           history,
                                           user_email: currentUser,
+                                          session_token: sessionToken,
                                           mode: requestMode,
                                       }
                             ),
@@ -1259,6 +1289,8 @@ const PanelMessage = () => {
 
         const currentUser = requireUserEmail();
         if (!currentUser) return;
+        const sessionToken = requireSessionToken();
+        if (!sessionToken) return;
 
         const { currentSession } = getCurrentSession();
 
@@ -1299,6 +1331,7 @@ const PanelMessage = () => {
                     model: SUMMARY_MODEL_ID,
                     history: [],
                     user_email: currentUser,
+                    session_token: sessionToken,
                 }),
                 signal: controller.signal,
             });
