@@ -37,7 +37,6 @@ const WEBHOOK_URL =
 const FILE_UPLOAD_WEBHOOK_URL = "https://tgdomen.ru/webhook/file-upload";
 
 const FALLBACK_MODEL = "gpt-5-nano";
-const FALLBACK_EMAIL = "Sergei19880415@gmail.com";
 const SUMMARY_MODEL_ID = "summary";
 const SUMMARY_MODEL_LABEL = "✨ Саммари";
 
@@ -157,35 +156,54 @@ const getFilePreviewMeta = (
 };
 
 const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
+    if (typeof window === "undefined") return "";
+    return (localStorage.getItem("ai_user_email") || "")
+        .toString()
+        .trim()
+        .toLowerCase();
+};
+
+const getUserStorageKey = () => {
+    return getUserEmail() || "unauthorized";
+};
+
+const requireUserEmail = () => {
+    const email = getUserEmail();
+
+    if (email) {
+        return email;
+    }
+
+    window.alert("Сессия не найдена. Войди в аккаунт заново.");
+    return null;
 };
 
 const getSessionsKey = () => {
-    return `ai_sessions_${getUserEmail()}`;
+    return `ai_sessions_${getUserStorageKey()}`;
 };
 
 const getCurrentSessionKey = () => {
-    return `ai_current_session_${getUserEmail()}`;
+    return `ai_current_session_${getUserStorageKey()}`;
 };
 
 const getSelectedModelKey = () => {
-    return `ai_selected_model_${getUserEmail()}`;
+    return `ai_selected_model_${getUserStorageKey()}`;
 };
 
 const getSelectedModelsKey = () => {
-    return `ai_selected_models_${getUserEmail()}`;
+    return `ai_selected_models_${getUserStorageKey()}`;
 };
 
 const getParallelCountKey = () => {
-    return `ai_parallel_count_${getUserEmail()}`;
+    return `ai_parallel_count_${getUserStorageKey()}`;
 };
 
 const getActiveModeKey = () => {
-    return `ai_active_mode_${getUserEmail()}`;
+    return `ai_active_mode_${getUserStorageKey()}`;
 };
 
 const getUiModeKey = () => {
-    return `ai_ui_mode_${getUserEmail()}`;
+    return `ai_ui_mode_${getUserStorageKey()}`;
 };
 
 const normalizePositiveInt = (value: unknown, fallback: number) => {
@@ -725,8 +743,9 @@ const PanelMessage = () => {
         setIsUploadingFile(true);
 
         try {
-            const currentUser =
-                localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+            const currentUser = requireUserEmail();
+            if (!currentUser) return;
+
             const currentSession = ensureCurrentSession();
             const formData = new FormData();
 
@@ -804,9 +823,9 @@ const PanelMessage = () => {
         setAttachedFileError("");
     
         try {
-            const currentUser =
-                localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
-    
+            const currentUser = requireUserEmail();
+            if (!currentUser) return;
+
             const response = await fetch(WEBHOOK_URL, {
                 method: "POST",
                 headers: {
@@ -876,8 +895,9 @@ const PanelMessage = () => {
     ) => {
         if (isSummarizing || !assistantMessageId || !modelId) return;
 
-        const currentUser =
-            localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+        const currentUser = requireUserEmail();
+        if (!currentUser) return;
+
         const { currentSession } = getCurrentSession();
 
         if (!currentSession) return;
@@ -1040,8 +1060,9 @@ const PanelMessage = () => {
         const text = message.trim();
         if (!text || isSending || isSummarizing || isUploadingFile) return;
 
-        const currentUser =
-            localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+        const currentUser = requireUserEmail();
+        if (!currentUser) return;
+
         const selectedModels = visibleModels;
         const requestMode = activeMode;
         const { sessions } = getCurrentSession();
@@ -1236,8 +1257,9 @@ const PanelMessage = () => {
     const summarizeAnswers = async () => {
         if (isSending || isSummarizing) return;
 
-        const currentUser =
-            localStorage.getItem("ai_user_email") || FALLBACK_EMAIL;
+        const currentUser = requireUserEmail();
+        if (!currentUser) return;
+
         const { currentSession } = getCurrentSession();
 
         if (!currentSession) {
