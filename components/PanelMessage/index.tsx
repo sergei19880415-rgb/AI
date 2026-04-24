@@ -9,7 +9,7 @@ import {
     type DragEvent,
     type KeyboardEvent,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     Dialog,
     DialogBackdrop,
@@ -39,6 +39,8 @@ const FILE_UPLOAD_WEBHOOK_URL = "https://tgdomen.ru/webhook/file-upload";
 const FALLBACK_MODEL = "gpt-5-nano";
 const SUMMARY_MODEL_ID = "summary";
 const SUMMARY_MODEL_LABEL = "✨ Саммари";
+const CHAT_DRAFT_STORAGE_KEY = "ai_chat_draft_message";
+const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 
 type ChatMode = "chat" | "search" | "image" | "video";
 
@@ -93,6 +95,11 @@ type SummaryAnswer = {
     provider: string;
     model: string;
     text: string;
+};
+
+type ParsedWebhookResponse = {
+    text: string;
+    authError: boolean;
 };
 
 type ImageOptionState = {
@@ -448,6 +455,19 @@ const extractAnswerText = (value: unknown): string | null => {
     return null;
 };
 
+const extractAuthError = (value: unknown): boolean => {
+    if (!isRecord(value)) return false;
+
+    const direct = value.auth_error;
+    if (typeof direct === "boolean") return direct;
+
+    const nestedJson = value.json;
+    if (!isRecord(nestedJson)) return false;
+
+    const nested = nestedJson.auth_error;
+    return typeof nested === "boolean" ? nested : false;
+};
+
 const isUsableAssistantMessage = (item: ChatMessage) => {
     if (item.role !== "assistant") return false;
     if (item.isLoading) return false;
@@ -504,6 +524,7 @@ const buildSummaryData = (
 };
 
 const PanelMessage = () => {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const sessionIdFromUrl = searchParams.get("id") || "";
     const abortControllersRef = useRef<AbortController[]>([]);
@@ -524,9 +545,20 @@ const PanelMessage = () => {
     const [summaryOpen, setSummaryOpen] = useState(false);
     const [summaryText, setSummaryText] = useState("");
     const [catalogVersion, setCatalogVersion] = useState(0);
+    const [sessionExpiredModalOpen, setSessionExpiredModalOpen] = useState(false);
     const [imageOptionsByModel, setImageOptionsByModel] = useState<
         Record<string, ImageOptionState>
     >({});
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const savedDraft = sessionStorage.getItem(CHAT_DRAFT_STORAGE_KEY) || "";
+        if (!savedDraft.trim()) return;
+
+        setMessage(savedDraft);
+        sessionStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
+    }, []);
 
     useEffect(() => {
         if (!sessionIdFromUrl) return;
@@ -677,11 +709,14 @@ const PanelMessage = () => {
         ? imageOptionsByModel[activeImageModel.modelId]
         : null;
 
-    const parseResponseText = (raw: string, status: number): string => {
+    const parseResponseText = (
+        raw: string,
+        status: number
+    ): ParsedWebhookResponse => {
         const trimmed = raw.trim();
 
         if (!trimmed) {
-            return `Пустое тело ответа. status=${status}`;
+            return { text: `Пустое тело ответа. status=${status}`, authError: false };
         }
 
         try {
@@ -691,31 +726,38 @@ const PanelMessage = () => {
                 try {
                     data = JSON.parse(data) as unknown;
                 } catch {
-                    return typeof data === "string" ? data : String(data);
+                    return {
+                        text: typeof data === "string" ? data : String(data),
+                        authError: false,
+                    };
                 }
             }
 
             if (Array.isArray(data)) {
                 const first = data[0];
+                const authError = extractAuthError(first);
 
-                if (typeof first === "string") return first;
+                if (typeof first === "string") {
+                    return { text: first, authError };
+                }
 
                 const extracted = extractAnswerText(first);
-                if (extracted) return extracted;
+                if (extracted) return { text: extracted, authError };
 
-                return JSON.stringify(first, null, 2);
+                return { text: JSON.stringify(first, null, 2), authError };
             }
 
             if (isRecord(data)) {
+                const authError = extractAuthError(data);
                 const extracted = extractAnswerText(data);
-                if (extracted) return extracted;
+                if (extracted) return { text: extracted, authError };
 
-                return JSON.stringify(data, null, 2);
+                return { text: JSON.stringify(data, null, 2), authError };
             }
 
-            return String(data);
+            return { text: String(data), authError: false };
         } catch {
-            return trimmed;
+            return { text: trimmed, authError: false };
         }
     };
 
@@ -1030,12 +1072,15 @@ const PanelMessage = () => {
             const raw = await response.text();
             const answerText = response.ok
                 ? parseResponseText(raw, response.status)
-                : raw.trim() || `Ошибка сервера. status=${response.status}`;
+                : {
+                      text: raw.trim() || `Ошибка сервера. status=${response.status}`,
+                      authError: false,
+                  };
 
             replaceMessageById(currentSession.id, assistantMessageId, {
                 id: assistantMessageId,
                 role: "assistant",
-                content: answerText,
+                content: answerText.text,
                 model_id: modelId,
                 model_display_name: modelDisplayName,
             });
@@ -1173,10 +1218,14 @@ const PanelMessage = () => {
         setMessage("");
         setIsSending(true);
         abortControllersRef.current = [];
+        let hasAuthError = false;
+        const hasSessionExisted = sessions.some((item) => item.id === currentSession?.id);
 
         try {
             await Promise.allSettled(
                 selectedModels.map(async (model) => {
+                    if (hasAuthError) return;
+
                     const loadingMessage = loadingMessages.find(
                         (item) => item.model_id === model.modelId
                     );
@@ -1237,15 +1286,50 @@ const PanelMessage = () => {
 
                         const raw = await response.text();
 
-                        const answerText = response.ok
+                        const parsedResponse = response.ok
                             ? parseResponseText(raw, response.status)
-                            : raw.trim() ||
-                              `Ошибка сервера. status=${response.status}`;
+                            : {
+                                  text:
+                                      raw.trim() ||
+                                      `Ошибка сервера. status=${response.status}`,
+                                  authError: false,
+                              };
+
+                        if (parsedResponse.authError) {
+                            hasAuthError = true;
+                            abortControllersRef.current.forEach((item) => item.abort());
+
+                            const rollbackSessions = hasSessionExisted
+                                ? workingSessions.map((item) =>
+                                      item.id === currentSession!.id
+                                          ? {
+                                                ...item,
+                                                messages: currentSession!.messages || [],
+                                                updatedAt: Date.now(),
+                                            }
+                                          : item
+                                  )
+                                : workingSessions.filter(
+                                      (item) => item.id !== currentSession!.id
+                                  );
+
+                            saveSessions(rollbackSessions);
+                            setMessage(text);
+                            sessionStorage.setItem(CHAT_DRAFT_STORAGE_KEY, text);
+                            localStorage.removeItem("ai_session_token");
+                            localStorage.removeItem("ai_session_expires_at");
+                            sessionStorage.setItem(
+                                RETURN_AFTER_LOGIN_STORAGE_KEY,
+                                `${window.location.pathname}${window.location.search}${window.location.hash}`
+                            );
+                            setSessionExpiredModalOpen(true);
+                            return;
+                        }
 
                         replaceMessageById(currentSession.id, loadingMessage.id, {
                             id: loadingMessage.id,
                             role: "assistant",
-                            content: answerText,
+                            content: parsedResponse.text,
                             model_id: model.modelId,
                             model_display_name: model.displayName,
                         });
@@ -1340,9 +1424,12 @@ const PanelMessage = () => {
 
             const answerText = response.ok
                 ? parseResponseText(raw, response.status)
-                : raw.trim() || `Ошибка сервера. status=${response.status}`;
+                : {
+                      text: raw.trim() || `Ошибка сервера. status=${response.status}`,
+                      authError: false,
+                  };
 
-            setSummaryText(answerText);
+            setSummaryText(answerText.text);
         } catch (error) {
             const errorText =
                 error instanceof Error ? error.message : "Ошибка сети";
@@ -1691,6 +1778,34 @@ const PanelMessage = () => {
                             <div className="whitespace-pre-wrap text-[14px] leading-6 text-gray-800">
                                 {summaryText || "Здесь появится саммари"}
                             </div>
+                        </div>
+                    </DialogPanel>
+                </div>
+            </Dialog>
+
+            <Dialog
+                open={sessionExpiredModalOpen}
+                onClose={() => {
+                    setSessionExpiredModalOpen(true);
+                }}
+                className="relative z-50"
+            >
+                <DialogBackdrop className="fixed inset-0 bg-[#1B1B1B]/60 backdrop-blur-[1px]" />
+                <div className="fixed inset-0 flex items-center justify-center p-4">
+                    <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_1.5rem_3rem_rgba(17,12,46,0.12)]">
+                        <div className="text-[16px] font-semibold text-gray-900">
+                            Сессия истекла. Войдите снова.
+                        </div>
+                        <div className="mt-5 flex justify-end">
+                            <Button
+                                isPrimary
+                                onClick={() => {
+                                    setSessionExpiredModalOpen(false);
+                                    router.push("/auth/sign-in");
+                                }}
+                            >
+                                Ок
+                            </Button>
                         </div>
                     </DialogPanel>
                 </div>
