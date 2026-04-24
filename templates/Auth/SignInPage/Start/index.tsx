@@ -38,6 +38,7 @@ type LoginResponse = {
 };
 
 const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
+const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 
 const getSelectedModelKey = (userEmail: string) => {
     return `ai_selected_model_${userEmail.trim()}`;
@@ -266,6 +267,15 @@ const Start = ({ onContinueWithEmail }: Props) => {
                     localStorage.setItem("ai_remember_email", cleanEmail);
                 } else {
                     localStorage.removeItem("ai_remember_email");
+                }
+
+                const returnAfterLogin =
+                    sessionStorage.getItem(RETURN_AFTER_LOGIN_STORAGE_KEY) || "";
+
+                if (returnAfterLogin.trim()) {
+                    sessionStorage.removeItem(RETURN_AFTER_LOGIN_STORAGE_KEY);
+                    router.push(returnAfterLogin);
+                    return;
                 }
 
                 router.push("/chat");
