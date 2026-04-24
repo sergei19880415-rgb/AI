@@ -54,6 +54,12 @@ const Account = ({ onOpenPricing }: Props) => {
     const handleSaveName = async (nextName: string) => {
         const cleanName = nextName.trim();
         const cleanEmail = userEmail.trim();
+        const sessionToken = localStorage.getItem("ai_session_token") || "";
+
+        if (!sessionToken) {
+            alert("Сессия авторизации не найдена. Войди в аккаунт заново.");
+            return;
+        }
 
         if (!cleanName || !cleanEmail || isSavingName) {
             return;
@@ -70,6 +76,7 @@ const Account = ({ onOpenPricing }: Props) => {
                 body: JSON.stringify({
                     email: cleanEmail,
                     firstName: cleanName,
+                    session_token: sessionToken,
                 }),
             });
 
