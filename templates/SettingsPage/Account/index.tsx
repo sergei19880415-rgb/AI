@@ -120,6 +120,12 @@ const Account = ({ onOpenPricing }: Props) => {
         const cleanCurrentPassword = currentPassword.trim();
         const cleanNewPassword = newPassword.trim();
         const cleanConfirmPassword = confirmPassword.trim();
+        const sessionToken = localStorage.getItem("ai_session_token") || "";
+
+        if (!sessionToken) {
+            alert("Сессия авторизации не найдена. Войди в аккаунт заново.");
+            return;
+        }
 
         if (
             !cleanEmail ||
@@ -159,6 +165,7 @@ const Account = ({ onOpenPricing }: Props) => {
                     email: cleanEmail,
                     oldPassword: cleanCurrentPassword,
                     newPassword: cleanNewPassword,
+                    session_token: sessionToken,
                 }),
             });
 
