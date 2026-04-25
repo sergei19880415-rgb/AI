@@ -10,6 +10,19 @@ import Line from "../Line";
 const UPDATE_NAME_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-name";
 const UPDATE_PASSWORD_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-password";
 
+const hasAuthError = (value: unknown): boolean => {
+    if (!value || typeof value !== "object") return false;
+
+    const recordValue = value as Record<string, unknown>;
+
+    if (recordValue.auth_error === true) return true;
+
+    const nestedData = recordValue.data;
+    if (!nestedData || typeof nestedData !== "object") return false;
+
+    return (nestedData as Record<string, unknown>).auth_error === true;
+};
+
 type Props = {
     onOpenPricing: () => void;
 };
@@ -27,6 +40,7 @@ const Account = ({ onOpenPricing }: Props) => {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [sessionExpiredModalOpen, setSessionExpiredModalOpen] = useState(false);
 
     useEffect(() => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
@@ -49,6 +63,12 @@ const Account = ({ onOpenPricing }: Props) => {
         setConfirmPassword("");
         setPasswordError("");
         setPasswordDialogOpen(false);
+    };
+
+    const handleSessionExpired = () => {
+        localStorage.removeItem("ai_session_token");
+        localStorage.removeItem("ai_session_expires_at");
+        setSessionExpiredModalOpen(true);
     };
 
     const handleSaveName = async (nextName: string) => {
@@ -92,6 +112,11 @@ const Account = ({ onOpenPricing }: Props) => {
                 parsed = JSON.parse(raw);
             } catch {
                 alert("Сервер вернул непонятный ответ");
+                return;
+            }
+
+            if (hasAuthError(parsed)) {
+                handleSessionExpired();
                 return;
             }
 
@@ -180,6 +205,12 @@ const Account = ({ onOpenPricing }: Props) => {
                 parsed = JSON.parse(raw);
             } catch {
                 setPasswordError("Сервер вернул непонятный ответ");
+                return;
+            }
+
+            if (hasAuthError(parsed)) {
+                setPasswordError("");
+                handleSessionExpired();
                 return;
             }
 
@@ -386,6 +417,30 @@ const Account = ({ onOpenPricing }: Props) => {
                         className="inline-flex h-11 items-center justify-center rounded-xl bg-error-100 px-5 text-[14px] font-medium text-white transition-colors hover:opacity-90"
                     >
                         Подтвердить
+                    </button>
+                </div>
+            </Modal>
+
+            <Modal
+                open={sessionExpiredModalOpen}
+                onClose={() => setSessionExpiredModalOpen(true)}
+                classWrapper="relative w-full max-w-[30rem] rounded-[1.5rem] border border-gray-100 bg-white px-6 py-6 shadow-[0_24px_64px_rgba(17,12,46,0.16)]"
+                classButtonClose="hidden"
+            >
+                <div className="text-[20px] font-semibold leading-7 text-gray-900">
+                    Сессия истекла. Войдите снова.
+                </div>
+
+                <div className="mt-6 flex items-center justify-end">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSessionExpiredModalOpen(false);
+                            window.location.href = "/auth/sign-in";
+                        }}
+                        className="inline-flex h-11 items-center justify-center rounded-xl bg-primary-300 px-5 text-[14px] font-medium text-white shadow-[0_10px_24px_rgba(123,58,237,0.24)] transition-colors hover:bg-primary-200"
+                    >
+                        Ок
                     </button>
                 </div>
             </Modal>
