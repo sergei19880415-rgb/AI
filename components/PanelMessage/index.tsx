@@ -524,9 +524,9 @@ const parseFileUploadResponse = (
 
     if (!trimmed) {
         return {
-            success: responseOk,
+            success: false,
             authError: false,
-            message: responseOk ? "" : fallbackMessage,
+            message: fallbackMessage || "Пустой ответ от сервера загрузки файла",
         };
     }
 
