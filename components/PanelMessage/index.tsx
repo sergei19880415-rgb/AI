@@ -100,6 +100,7 @@ type SummaryAnswer = {
 type ParsedWebhookResponse = {
     text: string;
     authError: boolean;
+    modelAccessError: boolean;
 };
 
 type ParsedFileUploadResponse = {
@@ -474,6 +475,31 @@ const extractAuthError = (value: unknown): boolean => {
     return typeof nested === "boolean" ? nested : false;
 };
 
+const extractModelAccessError = (value: unknown): boolean => {
+    if (!isRecord(value)) return false;
+
+    const direct = value.model_access_error;
+    if (typeof direct === "boolean") return direct;
+
+    const nestedData = value.data;
+    if (isRecord(nestedData)) {
+        const nestedDataFlag = nestedData.model_access_error;
+        if (typeof nestedDataFlag === "boolean") return nestedDataFlag;
+    }
+
+    const nestedJson = value.json;
+    if (!isRecord(nestedJson)) return false;
+
+    const nestedJsonDirect = nestedJson.model_access_error;
+    if (typeof nestedJsonDirect === "boolean") return nestedJsonDirect;
+
+    const nestedJsonData = nestedJson.data;
+    if (!isRecord(nestedJsonData)) return false;
+
+    const nestedJsonDataFlag = nestedJsonData.model_access_error;
+    return typeof nestedJsonDataFlag === "boolean" ? nestedJsonDataFlag : false;
+};
+
 const normalizeUploadPayload = (value: unknown): unknown => {
     const directPayload = Array.isArray(value) ? value[0] : value;
 
@@ -644,6 +670,7 @@ const PanelMessage = () => {
     const [summaryText, setSummaryText] = useState("");
     const [catalogVersion, setCatalogVersion] = useState(0);
     const [sessionExpiredModalOpen, setSessionExpiredModalOpen] = useState(false);
+    const [modelAccessModalOpen, setModelAccessModalOpen] = useState(false);
     const [imageOptionsByModel, setImageOptionsByModel] = useState<
         Record<string, ImageOptionState>
     >({});
@@ -814,7 +841,11 @@ const PanelMessage = () => {
         const trimmed = raw.trim();
 
         if (!trimmed) {
-            return { text: `Пустое тело ответа. status=${status}`, authError: false };
+            return {
+                text: `Пустое тело ответа. status=${status}`,
+                authError: false,
+                modelAccessError: false,
+            };
         }
 
         try {
@@ -827,6 +858,7 @@ const PanelMessage = () => {
                     return {
                         text: typeof data === "string" ? data : String(data),
                         authError: false,
+                        modelAccessError: false,
                     };
                 }
             }
@@ -834,28 +866,38 @@ const PanelMessage = () => {
             if (Array.isArray(data)) {
                 const first = data[0];
                 const authError = extractAuthError(first);
+                const modelAccessError = extractModelAccessError(first);
 
                 if (typeof first === "string") {
-                    return { text: first, authError };
+                    return { text: first, authError, modelAccessError };
                 }
 
                 const extracted = extractAnswerText(first);
-                if (extracted) return { text: extracted, authError };
+                if (extracted) return { text: extracted, authError, modelAccessError };
 
-                return { text: JSON.stringify(first, null, 2), authError };
+                return {
+                    text: JSON.stringify(first, null, 2),
+                    authError,
+                    modelAccessError,
+                };
             }
 
             if (isRecord(data)) {
                 const authError = extractAuthError(data);
+                const modelAccessError = extractModelAccessError(data);
                 const extracted = extractAnswerText(data);
-                if (extracted) return { text: extracted, authError };
+                if (extracted) return { text: extracted, authError, modelAccessError };
 
-                return { text: JSON.stringify(data, null, 2), authError };
+                return {
+                    text: JSON.stringify(data, null, 2),
+                    authError,
+                    modelAccessError,
+                };
             }
 
-            return { text: String(data), authError: false };
+            return { text: String(data), authError: false, modelAccessError: false };
         } catch {
-            return { text: trimmed, authError: false };
+            return { text: trimmed, authError: false, modelAccessError: false };
         }
     };
 
@@ -1114,6 +1156,7 @@ const PanelMessage = () => {
 
         const promptText = String(messages[userIndex]?.content || "").trim();
         if (!promptText) return;
+        const previousAssistantMessage = messages[assistantIndex];
 
         const modelCatalogItem = getModelsCatalog().find(
             (item) => item.model_id === modelId
@@ -1201,7 +1244,17 @@ const PanelMessage = () => {
                 : {
                       text: raw.trim() || `Ошибка сервера. status=${response.status}`,
                       authError: false,
+                      modelAccessError: false,
                   };
+
+            if (answerText.modelAccessError) {
+                replaceMessageById(currentSession.id, assistantMessageId, {
+                    ...previousAssistantMessage,
+                    isLoading: false,
+                });
+                setModelAccessModalOpen(true);
+                return;
+            }
 
             replaceMessageById(currentSession.id, assistantMessageId, {
                 id: assistantMessageId,
@@ -1345,12 +1398,13 @@ const PanelMessage = () => {
         setIsSending(true);
         abortControllersRef.current = [];
         let hasAuthError = false;
+        let hasModelAccessError = false;
         const hasSessionExisted = sessions.some((item) => item.id === currentSession?.id);
 
         try {
             await Promise.allSettled(
                 selectedModels.map(async (model) => {
-                    if (hasAuthError) return;
+                    if (hasAuthError || hasModelAccessError) return;
 
                     const loadingMessage = loadingMessages.find(
                         (item) => item.model_id === model.modelId
@@ -1419,6 +1473,7 @@ const PanelMessage = () => {
                                       raw.trim() ||
                                       `Ошибка сервера. status=${response.status}`,
                                   authError: false,
+                                  modelAccessError: false,
                               };
 
                         if (parsedResponse.authError) {
@@ -1452,6 +1507,31 @@ const PanelMessage = () => {
                             return;
                         }
 
+                        if (parsedResponse.modelAccessError) {
+                            hasModelAccessError = true;
+                            abortControllersRef.current.forEach((item) => item.abort());
+
+                            const rollbackSessions = hasSessionExisted
+                                ? workingSessions.map((item) =>
+                                      item.id === currentSession!.id
+                                          ? {
+                                                ...item,
+                                                messages: currentSession!.messages || [],
+                                                updatedAt: Date.now(),
+                                            }
+                                          : item
+                                  )
+                                : workingSessions.filter(
+                                      (item) => item.id !== currentSession!.id
+                                  );
+
+                            saveSessions(rollbackSessions);
+                            setMessage(text);
+                            sessionStorage.setItem(CHAT_DRAFT_STORAGE_KEY, text);
+                            setModelAccessModalOpen(true);
+                            return;
+                        }
+
                         replaceMessageById(currentSession.id, loadingMessage.id, {
                             id: loadingMessage.id,
                             role: "assistant",
@@ -1464,6 +1544,9 @@ const PanelMessage = () => {
                             error instanceof DOMException &&
                             error.name === "AbortError"
                         ) {
+                            if (hasAuthError || hasModelAccessError) {
+                                return;
+                            }
                             replaceMessageById(currentSession.id, loadingMessage.id, {
                                 id: loadingMessage.id,
                                 role: "assistant",
@@ -1472,6 +1555,9 @@ const PanelMessage = () => {
                                 model_display_name: model.displayName,
                             });
                         } else {
+                            if (hasAuthError || hasModelAccessError) {
+                                return;
+                            }
                             const errorText =
                                 error instanceof Error
                                     ? error.message
@@ -1553,6 +1639,7 @@ const PanelMessage = () => {
                 : {
                       text: raw.trim() || `Ошибка сервера. status=${response.status}`,
                       authError: false,
+                      modelAccessError: false,
                   };
 
             setSummaryText(answerText.text);
@@ -1904,6 +1991,34 @@ const PanelMessage = () => {
                             <div className="whitespace-pre-wrap text-[14px] leading-6 text-gray-800">
                                 {summaryText || "Здесь появится саммари"}
                             </div>
+                        </div>
+                    </DialogPanel>
+                </div>
+            </Dialog>
+
+            <Dialog
+                open={modelAccessModalOpen}
+                onClose={() => {
+                    setModelAccessModalOpen(false);
+                }}
+                className="relative z-50"
+            >
+                <DialogBackdrop className="fixed inset-0 bg-[#1B1B1B]/60 backdrop-blur-[1px]" />
+                <div className="fixed inset-0 flex items-center justify-center p-4">
+                    <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_1.5rem_3rem_rgba(17,12,46,0.12)]">
+                        <div className="text-[16px] font-semibold text-gray-900">
+                            Эта модель недоступна на вашем тарифе. Измените тарифный
+                            план, чтобы продолжить.
+                        </div>
+                        <div className="mt-5 flex justify-end">
+                            <Button
+                                isPrimary
+                                onClick={() => {
+                                    setModelAccessModalOpen(false);
+                                }}
+                            >
+                                Ок
+                            </Button>
                         </div>
                     </DialogPanel>
                 </div>
