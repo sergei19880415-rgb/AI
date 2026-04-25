@@ -7,6 +7,7 @@ import Head from "@/components/Login/Head";
 import Button from "@/components/Button";
 import Field from "@/components/Field";
 import Checkbox from "@/components/Checkbox";
+import EmailVerificationForm from "@/components/Login/EmailVerificationForm";
 
 type ModelCatalogItem = {
     model_id: string;
@@ -34,11 +35,18 @@ type LoginResponse = {
 
 type RegisterResponse = {
     success?: boolean;
+    emailVerificationRequired?: boolean;
+    message?: string;
+};
+
+type VerifyEmailResponse = {
+    success?: boolean;
     message?: string;
 };
 
 const REGISTER_WEBHOOK_URL = "https://tgdomen.ru/webhook/register-auth";
 const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
+const VERIFY_EMAIL_WEBHOOK_URL = "https://tgdomen.ru/webhook/verify-email";
 
 const getSelectedModelKey = (userEmail: string) => {
     return `ai_selected_model_${userEmail.trim()}`;
@@ -100,6 +108,21 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
 };
 
 const toRegisterResponse = (value: unknown): RegisterResponse | null => {
+    if (!isRecord(value)) return null;
+
+    return {
+        success:
+            typeof value.success === "boolean" ? value.success : undefined,
+        emailVerificationRequired:
+            typeof value.emailVerificationRequired === "boolean"
+                ? value.emailVerificationRequired
+                : undefined,
+        message:
+            typeof value.message === "string" ? value.message : undefined,
+    };
+};
+
+const toVerifyEmailResponse = (value: unknown): VerifyEmailResponse | null => {
     if (!isRecord(value)) return null;
 
     return {
@@ -215,6 +238,10 @@ const Start = () => {
     const [errorText, setErrorText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [showTermsError, setShowTermsError] = useState(false);
+    const [pendingEmail, setPendingEmail] = useState("");
+    const [verificationCode, setVerificationCode] = useState("");
+    const [isVerifyLoading, setIsVerifyLoading] = useState(false);
+    const [verifySuccessText, setVerifySuccessText] = useState("");
 
     const handleSignUp = async () => {
         const cleanFirstName = firstName.trim();
@@ -290,6 +317,14 @@ const Start = () => {
                 return;
             }
 
+            if (registerData.emailVerificationRequired) {
+                setPendingEmail(cleanEmail);
+                setVerificationCode("");
+                setVerifySuccessText("");
+                setErrorText("");
+                return;
+            }
+
             const loginResponse = await fetch(LOGIN_WEBHOOK_URL, {
                 method: "POST",
                 headers: {
@@ -332,6 +367,64 @@ const Start = () => {
         }
     };
 
+    const handleVerifyEmail = async () => {
+        const cleanPendingEmail = pendingEmail.trim();
+        const cleanCode = verificationCode.trim();
+
+        if (!cleanPendingEmail || !cleanCode || isVerifyLoading) return;
+
+        setIsVerifyLoading(true);
+        setErrorText("");
+        setVerifySuccessText("");
+
+        try {
+            const response = await fetch(VERIFY_EMAIL_WEBHOOK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: cleanPendingEmail,
+                    code: cleanCode,
+                }),
+            });
+
+            const raw = await response.text();
+
+            let parsed: unknown = null;
+
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                setErrorText("Сервер подтверждения вернул непонятный ответ");
+                setIsVerifyLoading(false);
+                return;
+            }
+
+            const data = toVerifyEmailResponse(parsed);
+
+            if (!response.ok || !data?.success) {
+                setErrorText(data?.message || "Не удалось подтвердить email");
+                setIsVerifyLoading(false);
+                return;
+            }
+
+            const successMessage =
+                data.message || "Email подтверждён. Теперь можно войти.";
+
+            setVerifySuccessText(successMessage);
+            localStorage.setItem("ai_remember_email", cleanPendingEmail);
+
+            setTimeout(() => {
+                router.push("/auth/sign-in");
+            }, 700);
+        } catch {
+            setErrorText("Ошибка сети или CORS");
+        } finally {
+            setIsVerifyLoading(false);
+        }
+    };
+
     const handleKeyDown = (
         e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
@@ -347,6 +440,19 @@ const Start = () => {
             setShowTermsError(false);
         }
     };
+
+    if (pendingEmail) {
+        return (
+            <EmailVerificationForm
+                code={verificationCode}
+                onCodeChange={setVerificationCode}
+                onSubmit={handleVerifyEmail}
+                isLoading={isVerifyLoading}
+                errorText={errorText}
+                successText={verifySuccessText}
+            />
+        );
+    }
 
     return (
         <>

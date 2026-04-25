@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Head from "@/components/Login/Head";
 import Button from "@/components/Button";
 import Image from "@/components/Image";
@@ -10,7 +10,7 @@ import Field from "@/components/Field";
 import Checkbox from "@/components/Checkbox";
 
 type Props = {
-    onContinueWithEmail: () => void;
+    onRequireEmailVerification: (email: string, message?: string) => void;
 };
 
 type ModelCatalogItem = {
@@ -26,6 +26,7 @@ type ModelCatalogItem = {
 
 type LoginResponse = {
     success?: boolean;
+    emailVerificationRequired?: boolean;
     firstName?: string;
     lastName?: string;
     planType?: string;
@@ -68,6 +69,10 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
     return {
         success:
             typeof value.success === "boolean" ? value.success : undefined,
+        emailVerificationRequired:
+            typeof value.emailVerificationRequired === "boolean"
+                ? value.emailVerificationRequired
+                : undefined,
         firstName:
             typeof value.firstName === "string" ? value.firstName : undefined,
         lastName:
@@ -99,14 +104,16 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
     };
 };
 
-const Start = ({ onContinueWithEmail }: Props) => {
+const Start = ({ onRequireEmailVerification }: Props) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(false);
     const [errorText, setErrorText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [successText, setSuccessText] = useState("");
 
     useEffect(() => {
         const savedRememberEmail = localStorage.getItem("ai_remember_email");
@@ -114,7 +121,12 @@ const Start = ({ onContinueWithEmail }: Props) => {
             setEmail(savedRememberEmail);
             setRemember(true);
         }
-    }, []);
+
+        if (searchParams.get("verified") === "1") {
+            setSuccessText("Email подтверждён. Теперь можно войти.");
+            router.replace("/auth/sign-in");
+        }
+    }, [router, searchParams]);
 
     const handleLogin = async () => {
         const cleanEmail = email.trim();
@@ -124,6 +136,7 @@ const Start = ({ onContinueWithEmail }: Props) => {
 
         setIsLoading(true);
         setErrorText("");
+        setSuccessText("");
 
         try {
             const response = await fetch(LOGIN_WEBHOOK_URL, {
@@ -282,6 +295,15 @@ const Start = ({ onContinueWithEmail }: Props) => {
                 return;
             }
 
+            if (data.emailVerificationRequired) {
+                onRequireEmailVerification(
+                    cleanEmail,
+                    data.message ||
+                        "Подтвердите email. Код уже отправлен на вашу почту."
+                );
+                return;
+            }
+
             setErrorText(data.message || "Неверный логин или пароль");
         } catch {
             setErrorText("Ошибка сети или CORS");
@@ -356,6 +378,9 @@ const Start = ({ onContinueWithEmail }: Props) => {
 
             {errorText && (
                 <div className="mb-3 text-sm text-red-600">{errorText}</div>
+            )}
+            {successText && (
+                <div className="mb-3 text-sm text-green-700">{successText}</div>
             )}
 
             <div className="flex justify-between items-center h-10 mb-4">
