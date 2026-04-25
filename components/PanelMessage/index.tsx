@@ -474,6 +474,22 @@ const extractAuthError = (value: unknown): boolean => {
     return typeof nested === "boolean" ? nested : false;
 };
 
+const normalizeUploadPayload = (value: unknown): unknown => {
+    const directPayload = Array.isArray(value) ? value[0] : value;
+
+    if (!isRecord(directPayload)) {
+        return directPayload;
+    }
+
+    const nestedData = directPayload.data;
+
+    if (isRecord(nestedData) || Array.isArray(nestedData)) {
+        return Array.isArray(nestedData) ? nestedData[0] : nestedData;
+    }
+
+    return directPayload;
+};
+
 const extractSuccessFlag = (value: unknown): boolean | null => {
     if (!isRecord(value)) return null;
 
@@ -485,6 +501,17 @@ const extractSuccessFlag = (value: unknown): boolean | null => {
 
     const nested = nestedJson.success;
     return typeof nested === "boolean" ? nested : null;
+};
+
+const extractUploadMessage = (value: unknown): string => {
+    if (!isRecord(value)) return "";
+
+    return (
+        readTextField(value, "message") ||
+        readTextField(value, "text") ||
+        readTextField(value, "answer") ||
+        ""
+    );
 };
 
 const parseFileUploadResponse = (
@@ -518,19 +545,15 @@ const parseFileUploadResponse = (
             }
         }
 
-        const payload = Array.isArray(data) ? data[0] : data;
-        const authError = extractAuthError(payload);
-        const successFlag = extractSuccessFlag(payload);
+        const payload = normalizeUploadPayload(data);
+        const authError = extractAuthError(payload) || extractAuthError(data);
+        const successFlag =
+            extractSuccessFlag(payload) ?? extractSuccessFlag(data) ?? false;
         const extractedMessage =
-            readTextField(payload, "message") ||
-            readTextField(payload, "text") ||
-            readTextField(payload, "answer") ||
-            "";
+            extractUploadMessage(payload) || extractUploadMessage(data);
 
         return {
-            success:
-                Boolean(responseOk) &&
-                (typeof successFlag === "boolean" ? successFlag : true),
+            success: Boolean(responseOk) && successFlag === true,
             authError,
             message: extractedMessage || fallbackMessage,
         };
@@ -903,11 +926,29 @@ const PanelMessage = () => {
             if (uploadResponse.authError) {
                 localStorage.removeItem("ai_session_token");
                 localStorage.removeItem("ai_session_expires_at");
+                setAttachedFileName("");
+                setAttachedFileMimeType("");
+                writeSessionUiSettings(currentSession.id, {
+                    attachedFileName: "",
+                    attachedFileMimeType: "",
+                });
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                }
                 setSessionExpiredModalOpen(true);
                 throw new Error(uploadResponse.message);
             }
 
             if (!uploadResponse.success) {
+                setAttachedFileName("");
+                setAttachedFileMimeType("");
+                writeSessionUiSettings(currentSession.id, {
+                    attachedFileName: "",
+                    attachedFileMimeType: "",
+                });
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                }
                 throw new Error(uploadResponse.message);
             }
 
