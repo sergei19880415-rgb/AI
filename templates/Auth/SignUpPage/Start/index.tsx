@@ -239,6 +239,7 @@ const Start = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showTermsError, setShowTermsError] = useState(false);
     const [pendingEmail, setPendingEmail] = useState("");
+    const [pendingPassword, setPendingPassword] = useState("");
     const [verificationCode, setVerificationCode] = useState("");
     const [isVerifyLoading, setIsVerifyLoading] = useState(false);
     const [verifySuccessText, setVerifySuccessText] = useState("");
@@ -319,6 +320,7 @@ const Start = () => {
 
             if (registerData.emailVerificationRequired) {
                 setPendingEmail(cleanEmail);
+                setPendingPassword(cleanPassword);
                 setVerificationCode("");
                 setVerifySuccessText("");
                 setErrorText("");
@@ -369,6 +371,7 @@ const Start = () => {
 
     const handleVerifyEmail = async () => {
         const cleanPendingEmail = pendingEmail.trim();
+        const cleanPendingPassword = pendingPassword.trim();
         const cleanCode = verificationCode.trim();
 
         if (!cleanPendingEmail || !cleanCode || isVerifyLoading) return;
@@ -415,9 +418,49 @@ const Start = () => {
             setVerifySuccessText(successMessage);
             localStorage.setItem("ai_remember_email", cleanPendingEmail);
 
-            setTimeout(() => {
+            if (!cleanPendingPassword) {
+                setVerifySuccessText("Email подтверждён. Войдите в аккаунт.");
+                setPendingPassword("");
                 router.push("/auth/sign-in");
-            }, 700);
+                return;
+            }
+
+            const loginResponse = await fetch(LOGIN_WEBHOOK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: cleanPendingEmail,
+                    password: cleanPendingPassword,
+                }),
+            });
+
+            const loginRaw = await loginResponse.text();
+
+            let loginParsed: unknown = null;
+
+            try {
+                loginParsed = JSON.parse(loginRaw);
+            } catch {
+                setVerifySuccessText("Email подтверждён. Войдите в аккаунт.");
+                setPendingPassword("");
+                router.push("/auth/sign-in");
+                return;
+            }
+
+            const loginData = toLoginResponse(loginParsed);
+
+            if (!loginResponse.ok || !loginData?.success) {
+                setVerifySuccessText("Email подтверждён. Войдите в аккаунт.");
+                setPendingPassword("");
+                router.push("/auth/sign-in");
+                return;
+            }
+
+            applyLoginState(loginData, cleanPendingEmail);
+            setPendingPassword("");
+            router.push("/chat");
         } catch {
             setErrorText("Ошибка сети или CORS");
         } finally {
