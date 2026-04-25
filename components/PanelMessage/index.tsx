@@ -102,6 +102,12 @@ type ParsedWebhookResponse = {
     authError: boolean;
 };
 
+type ParsedFileUploadResponse = {
+    success: boolean;
+    authError: boolean;
+    message: string;
+};
+
 type ImageOptionState = {
     quality: string;
     size: string;
@@ -468,6 +474,75 @@ const extractAuthError = (value: unknown): boolean => {
     return typeof nested === "boolean" ? nested : false;
 };
 
+const extractSuccessFlag = (value: unknown): boolean | null => {
+    if (!isRecord(value)) return null;
+
+    const direct = value.success;
+    if (typeof direct === "boolean") return direct;
+
+    const nestedJson = value.json;
+    if (!isRecord(nestedJson)) return null;
+
+    const nested = nestedJson.success;
+    return typeof nested === "boolean" ? nested : null;
+};
+
+const parseFileUploadResponse = (
+    raw: string,
+    status: number,
+    responseOk: boolean
+): ParsedFileUploadResponse => {
+    const fallbackMessage = raw.trim() || `Ошибка загрузки файла. status=${status}`;
+    const trimmed = raw.trim();
+
+    if (!trimmed) {
+        return {
+            success: responseOk,
+            authError: false,
+            message: responseOk ? "" : fallbackMessage,
+        };
+    }
+
+    try {
+        let data: unknown = JSON.parse(trimmed);
+
+        if (typeof data === "string") {
+            try {
+                data = JSON.parse(data) as unknown;
+            } catch {
+                return {
+                    success: responseOk,
+                    authError: false,
+                    message: data,
+                };
+            }
+        }
+
+        const payload = Array.isArray(data) ? data[0] : data;
+        const authError = extractAuthError(payload);
+        const successFlag = extractSuccessFlag(payload);
+        const extractedMessage =
+            readTextField(payload, "message") ||
+            readTextField(payload, "text") ||
+            readTextField(payload, "answer") ||
+            "";
+
+        return {
+            success:
+                Boolean(responseOk) &&
+                (typeof successFlag === "boolean" ? successFlag : true),
+            authError,
+            message: extractedMessage || fallbackMessage,
+        };
+    } catch {
+        return {
+            success: responseOk,
+            authError: false,
+            message: fallbackMessage,
+        };
+    }
+};
+
 const isUsableAssistantMessage = (item: ChatMessage) => {
     if (item.role !== "assistant") return false;
     if (item.isLoading) return false;
@@ -819,11 +894,21 @@ const PanelMessage = () => {
                 body: formData,
             });
             const raw = await response.text();
+            const uploadResponse = parseFileUploadResponse(
+                raw,
+                response.status,
+                response.ok
+            );
 
-            if (!response.ok) {
-                throw new Error(
-                    raw || `Ошибка загрузки файла. status=${response.status}`
-                );
+            if (uploadResponse.authError) {
+                localStorage.removeItem("ai_session_token");
+                localStorage.removeItem("ai_session_expires_at");
+                setSessionExpiredModalOpen(true);
+                throw new Error(uploadResponse.message);
+            }
+
+            if (!uploadResponse.success) {
+                throw new Error(uploadResponse.message);
             }
 
             setAttachedFileName(file.name);
