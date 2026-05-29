@@ -1,46 +1,46 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/Login/Layout";
-import VerifyCode from "@/components/Login/VerifyCode";
-import Success from "@/components/Login/Success";
 import Start from "./Start";
 import ConfirmCode from "./ConfirmCode";
 
+const RESET_SUCCESS_MESSAGE = "Пароль обновлён. Теперь можно войти.";
+
 const ForgotPasswordPage = () => {
-    const [step, setStep] = useState<
-        "start" | "verify" | "confirm" | "success"
-    >("start");
+    const router = useRouter();
+    const [step, setStep] = useState<"start" | "confirm">("start");
+    const [email, setEmail] = useState("");
+    const [requestMessage, setRequestMessage] = useState("");
 
-    const handleContinueWithEmail = () => {
-        setStep("verify");
-    };
-
-    const handleVerifyCode = () => {
+    const handleCodeRequested = (requestedEmail: string, message: string) => {
+        setEmail(requestedEmail);
+        setRequestMessage(message);
         setStep("confirm");
     };
 
-    const handleContinue = () => {
-        setStep("success");
+    const handlePasswordChanged = () => {
+        try {
+            localStorage.setItem("ai_remember_email", email.trim());
+        } catch {
+            // localStorage can be unavailable in private mode; reset flow should still finish.
+        }
+
+        router.push("/auth/sign-in?reset=1");
     };
 
     return (
         <Layout>
             {step === "start" && (
-                <Start onContinueWithEmail={handleContinueWithEmail} />
+                <Start onCodeRequested={handleCodeRequested} />
             )}
-            {step === "verify" && (
-                <VerifyCode
-                    title="Verify your email address"
-                    onContinue={handleVerifyCode}
-                />
-            )}
-            {step === "confirm" && <ConfirmCode onContinue={handleContinue} />}
-            {step === "success" && (
-                <Success
-                    title="Password Reset Complete!"
-                    description="Your password has been reset successfully. You can now login with your new password."
-                    isResetPassword
+            {step === "confirm" && (
+                <ConfirmCode
+                    email={email}
+                    requestMessage={requestMessage}
+                    successMessage={RESET_SUCCESS_MESSAGE}
+                    onPasswordChanged={handlePasswordChanged}
                 />
             )}
         </Layout>
