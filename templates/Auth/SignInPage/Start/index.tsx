@@ -125,6 +125,12 @@ const Start = ({ onRequireEmailVerification }: Props) => {
         if (searchParams.get("verified") === "1") {
             setSuccessText("Email подтверждён. Теперь можно войти.");
             router.replace("/auth/sign-in");
+            return;
+        }
+
+        if (searchParams.get("reset") === "1") {
+            setSuccessText("Пароль обновлён. Теперь можно войти.");
+            router.replace("/auth/sign-in");
         }
     }, [router, searchParams]);
 
