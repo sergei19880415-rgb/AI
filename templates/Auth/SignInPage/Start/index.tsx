@@ -14,6 +14,7 @@ import {
     normalizeUserEmail,
     setStoredUserEmail,
 } from "@/lib/userStorage";
+import { syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
 
 type Props = {
     onRequireEmailVerification: (email: string, message?: string) => void;
@@ -288,6 +289,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 window.dispatchEvent(new Event("ai-models-catalog-updated"));
                 window.dispatchEvent(new Event("ai-selected-model-updated"));
                 window.dispatchEvent(new Event("ai-parallel-settings-updated"));
+
+                await syncCloudChatsToLocalStorage();
 
                 if (remember) {
                     localStorage.setItem("ai_remember_email", cleanEmail);

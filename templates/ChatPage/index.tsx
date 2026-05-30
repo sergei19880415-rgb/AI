@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Layout from "@/components/Layout";
 import Message from "@/components/Message";
@@ -14,6 +14,13 @@ import {
     getUiModeKey,
 } from "@/lib/chatUiSettings";
 import { getUserScopedKey, migrateUserScopedStorage } from "@/lib/userStorage";
+import {
+    getCloudChats,
+    getCloudMessages,
+    mergeCloudChatsIntoLocal,
+    mergeCloudMessagesIntoSession,
+    saveCloudChat,
+} from "@/lib/chatHistoryCloud";
 
 type ChatMessage = {
     id: string;
@@ -123,6 +130,11 @@ const ensureSession = (requestedId?: string | null) => {
         };
 
         saveSessions([newSession]);
+        void saveCloudChat({
+            id: newSession.id,
+            title: newSession.title,
+            mode: getUiMode(),
+        });
         localStorage.setItem(getCurrentSessionKey(), newSession.id);
 
         return newSession;
@@ -220,9 +232,37 @@ const ChatPage = () => {
     const [parallelCount, setParallelCount] = useState(1);
     const [visibleModelIds, setVisibleModelIds] = useState<string[]>([]);
     const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
+    const cloudChatsLoadedRef = useRef(false);
+    const loadedCloudMessagesRef = useRef(new Set<string>());
 
     useEffect(() => {
         migrateUserScopedStorage();
+
+        const loadCloudChats = async () => {
+            if (cloudChatsLoadedRef.current) return;
+            cloudChatsLoadedRef.current = true;
+
+            const cloudSessions = await getCloudChats();
+            if (!cloudSessions.length) return;
+
+            saveSessions(mergeCloudChatsIntoLocal(readSessions(), cloudSessions));
+        };
+
+        const loadCloudMessages = async (sessionId: string) => {
+            if (loadedCloudMessagesRef.current.has(sessionId)) return;
+            loadedCloudMessagesRef.current.add(sessionId);
+
+            const cloudMessages = await getCloudMessages(sessionId);
+            if (!cloudMessages.length) return;
+
+            const nextSessions = readSessions().map((item) =>
+                item.id === sessionId
+                    ? mergeCloudMessagesIntoSession(item, cloudMessages)
+                    : item
+            );
+
+            saveSessions(nextSessions);
+        };
 
         const loadState = () => {
             const session = ensureSession(sessionIdFromUrl);
@@ -235,6 +275,9 @@ const ChatPage = () => {
             );
             setVisibleModelIds(getVisibleModelIds());
             setModelsCatalog(getModelsCatalog());
+
+            void loadCloudChats();
+            void loadCloudMessages(session.id);
 
             if (sessionIdFromUrl !== session.id) {
                 router.replace(`/chat?id=${session.id}`);
