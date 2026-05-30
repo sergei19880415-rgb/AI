@@ -12,13 +12,17 @@ import {
     getSelectedModelKey,
     getSelectedModelsKey,
     getUiModeKey,
+    readSessionUiSettings,
+    writeSessionUiSettings,
 } from "@/lib/chatUiSettings";
 import { getUserScopedKey, migrateUserScopedStorage } from "@/lib/userStorage";
 import {
     getCloudChats,
     getCloudMessages,
+    inferSelectedModelsFromMessages,
     mergeCloudChatsIntoLocal,
     mergeCloudMessagesIntoSession,
+    normalizeSelectedModels,
     saveCloudChat,
 } from "@/lib/chatHistoryCloud";
 
@@ -38,6 +42,8 @@ type ChatSession = {
     title: string;
     messages: ChatMessage[];
     updatedAt: number;
+    mode?: string;
+    selected_models?: string[];
 };
 
 type ModelCatalogItem = {
@@ -134,6 +140,7 @@ const ensureSession = (requestedId?: string | null) => {
             id: newSession.id,
             title: newSession.title,
             mode: getUiMode(),
+            selected_models: getSelectedModelsForCloudSave(),
         });
         localStorage.setItem(getCurrentSessionKey(), newSession.id);
 
@@ -212,13 +219,44 @@ const getGridClassName = (count: number) => {
 };
 
 const getUiMode = (): UiMode => {
-    const raw = (localStorage.getItem(getUiModeKey()) || "chat")
-        .trim()
-        .toLowerCase();
+    return normalizeChatUiMode(localStorage.getItem(getUiModeKey()) || undefined);
+};
 
-    if (raw === "image") return "image";
-    if (raw === "video") return "video";
+const normalizeChatUiMode = (mode?: string): UiMode => {
+    const cleanMode = String(mode || "chat").trim().toLowerCase();
+    if (cleanMode === "image") return "image";
+    if (cleanMode === "video") return "video";
     return "chat";
+};
+
+const applyChatUiMetadata = (session: Partial<ChatSession>) => {
+    const sessionId = String(session.id || "").trim();
+    if (!sessionId) return;
+
+    const selectedModels = normalizeSelectedModels(session.selected_models);
+    const mode = normalizeChatUiMode(session.mode);
+
+    if (!session.mode && selectedModels.length === 0) return;
+
+    writeSessionUiSettings(sessionId, {
+        activeMode: mode === "image" ? "image" : "text",
+        uiMode: mode,
+        ...(selectedModels.length > 0
+            ? {
+                  parallelCount: selectedModels.length,
+                  selectedModels,
+                  selectedModel: selectedModels[0] || "",
+              }
+            : {}),
+    });
+};
+
+const getSelectedModelsForCloudSave = () => {
+    const selectedModels = normalizeSelectedModels(readSelectedModels());
+    if (selectedModels.length > 0) return selectedModels;
+
+    const currentModel = (localStorage.getItem(getSelectedModelKey()) || "").trim();
+    return currentModel ? [currentModel] : [];
 };
 
 const ChatPage = () => {
@@ -255,17 +293,43 @@ const ChatPage = () => {
             const cloudMessages = await getCloudMessages(sessionId);
             if (!cloudMessages.length) return;
 
-            const nextSessions = readSessions().map((item) =>
-                item.id === sessionId
-                    ? mergeCloudMessagesIntoSession(item, cloudMessages)
-                    : item
-            );
+            const nextSessions = readSessions().map((item) => {
+                if (item.id !== sessionId) return item;
+
+                const mergedSession = mergeCloudMessagesIntoSession(item, cloudMessages);
+                const selectedModels = normalizeSelectedModels(
+                    mergedSession.selected_models
+                );
+                const savedSettings = readSessionUiSettings(sessionId);
+                const savedSelectedModels = normalizeSelectedModels(
+                    savedSettings?.selectedModels
+                );
+                const inferredSelectedModels = selectedModels.length
+                    ? selectedModels
+                    : inferSelectedModelsFromMessages(cloudMessages);
+
+                if (savedSelectedModels.length === 0 && inferredSelectedModels.length > 0) {
+                    writeSessionUiSettings(sessionId, {
+                        activeMode: "text",
+                        uiMode: normalizeChatUiMode(mergedSession.mode),
+                        parallelCount: inferredSelectedModels.length,
+                        selectedModels: inferredSelectedModels,
+                        selectedModel: inferredSelectedModels[0] || "",
+                    });
+                }
+
+                return {
+                    ...mergedSession,
+                    selected_models: inferredSelectedModels,
+                };
+            });
 
             saveSessions(nextSessions);
         };
 
         const loadState = () => {
             const session = ensureSession(sessionIdFromUrl);
+            applyChatUiMetadata(session);
             applySessionUiSettingsToLegacyKeys(session.id);
             setMessages(session.messages || []);
             setSessionTitle(session.title || "Новый чат");
@@ -385,9 +449,15 @@ const ChatPage = () => {
         }
 
         return messageTurns.flatMap((turn) => {
-            const turnAssistants = turn.assistants.filter(
-                (assistant) => assistant.model_id === modelId
+            const hasVisibleModelMessages = turn.assistants.some((assistant) =>
+                visibleModelIds.includes(String(assistant.model_id || ""))
             );
+            const turnAssistants = turn.assistants.filter((assistant) => {
+                const assistantModelId = String(assistant.model_id || "").trim();
+                if (!hasVisibleModelMessages && assistantModelId) return true;
+                if (!assistantModelId) return true;
+                return assistantModelId === modelId;
+            });
 
             if (turnAssistants.length === 0) {
                 return [];
