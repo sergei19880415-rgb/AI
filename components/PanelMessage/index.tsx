@@ -954,6 +954,7 @@ const PanelMessage = () => {
             id: nextSession.id,
             title: nextSession.title,
             mode: activeMode,
+            selected_models: visibleModels.map((item) => item.modelId),
         });
         localStorage.setItem(getCurrentSessionKey(), nextSession.id);
         window.history.replaceState({}, "", `/chat?id=${nextSession.id}`);
@@ -1379,6 +1380,7 @@ const PanelMessage = () => {
                 id: currentSession.id,
                 title: currentSession.title,
                 mode: requestMode,
+                selected_models: selectedModels.map((item) => item.modelId),
             });
             localStorage.setItem(getCurrentSessionKey(), currentSession.id);
             window.history.replaceState({}, "", `/chat?id=${currentSession.id}`);
@@ -1432,6 +1434,7 @@ const PanelMessage = () => {
                     ? getSessionTitleFromText(text)
                     : currentSession.title,
             mode: requestMode,
+            selected_models: selectedModels.map((item) => item.modelId),
         });
         saveMessageToCloud(currentSession.id, userMessage);
         localStorage.setItem(getCurrentSessionKey(), currentSession.id);

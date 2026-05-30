@@ -1,7 +1,9 @@
+import { writeSessionUiSettings } from "@/lib/chatUiSettings";
 import { getUserScopedKey } from "@/lib/userStorage";
 
 const CHAT_HISTORY_WEBHOOK_URL = "https://tgdomen.ru/webhook/chat-history";
 const SAVED_CHAT_IDS_PREFIX = "ai_cloud_saved_chat_ids_";
+const SAVED_CHAT_METADATA_PREFIX = "ai_cloud_saved_chat_metadata_";
 const pendingChatSaves = new Set<string>();
 
 export type CloudChatMessageRole = "user" | "assistant" | "system";
@@ -12,6 +14,7 @@ export type CloudChatSession = {
     messages: CloudChatMessage[];
     updatedAt: number;
     mode?: string;
+    selected_models?: string[];
 };
 
 export type CloudChatMessage = {
@@ -32,6 +35,7 @@ type CloudChatPayload = {
     id: string;
     title: string;
     mode: string;
+    selected_models?: string[];
 };
 
 type CloudMessagePayload = {
@@ -45,6 +49,52 @@ type CloudMessagePayload = {
 };
 
 const isBrowser = () => typeof window !== "undefined";
+
+export const normalizeSelectedModels = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+        return [
+            ...new Set(
+                value.map((item) => String(item || "").trim()).filter(Boolean)
+            ),
+        ];
+    }
+
+    if (typeof value === "string") {
+        const clean = value.trim();
+        if (!clean) return [];
+
+        try {
+            const parsed = JSON.parse(clean);
+            if (Array.isArray(parsed)) {
+                return normalizeSelectedModels(parsed);
+            }
+        } catch {
+            // Fall back to comma-separated values below.
+        }
+
+        return [
+            ...new Set(
+                clean
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean)
+            ),
+        ];
+    }
+
+    return [];
+};
+
+const getCloudChatUiMode = (mode?: string) => {
+    const cleanMode = String(mode || "chat").trim().toLowerCase();
+    if (cleanMode === "image") return "image";
+    if (cleanMode === "video") return "video";
+    return "chat";
+};
+
+const getCloudChatActiveMode = (mode?: string) => {
+    return getCloudChatUiMode(mode) === "image" ? "image" : "text";
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -77,6 +127,44 @@ const writeSavedChatIds = (ids: Set<string>) => {
         getUserScopedKey(SAVED_CHAT_IDS_PREFIX),
         JSON.stringify(Array.from(ids))
     );
+};
+
+const readSavedChatMetadata = () => {
+    if (!isBrowser()) return new Map<string, string>();
+
+    try {
+        const raw = localStorage.getItem(getUserScopedKey(SAVED_CHAT_METADATA_PREFIX));
+        const parsed = raw ? JSON.parse(raw) : {};
+        if (!isRecord(parsed)) return new Map<string, string>();
+
+        return new Map(
+            Object.entries(parsed)
+                .map(([id, metadata]) => [
+                    String(id || "").trim(),
+                    String(metadata || ""),
+                ] as const)
+                .filter(([id]) => Boolean(id))
+        );
+    } catch {
+        return new Map<string, string>();
+    }
+};
+
+const writeSavedChatMetadata = (metadata: Map<string, string>) => {
+    if (!isBrowser()) return;
+
+    localStorage.setItem(
+        getUserScopedKey(SAVED_CHAT_METADATA_PREFIX),
+        JSON.stringify(Object.fromEntries(metadata))
+    );
+};
+
+const getChatMetadataSignature = (chat: CloudChatPayload) => {
+    return JSON.stringify({
+        title: String(chat.title || "Новый чат").trim() || "Новый чат",
+        mode: getCloudChatUiMode(chat.mode),
+        selected_models: normalizeSelectedModels(chat.selected_models),
+    });
 };
 
 const postChatHistory = async (payload: Record<string, unknown>) => {
@@ -131,13 +219,17 @@ const normalizeCloudChat = (value: unknown): CloudChatSession | null => {
     if (!id) return null;
 
     const title = String(value.title || "Новый чат").trim() || "Новый чат";
-    const mode = String(value.mode || "chat").trim() || "chat";
+    const mode = getCloudChatUiMode(String(value.mode || "chat"));
     const updatedAt = Number(value.updatedAt || value.updated_at || value.created_at || 0);
+    const selectedModels = normalizeSelectedModels(
+        value.selected_models || value.selectedModels
+    );
 
     return {
         id,
         title,
         mode,
+        selected_models: selectedModels,
         messages: [],
         updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : Date.now(),
     };
@@ -161,6 +253,7 @@ const normalizeCloudMessage = (value: unknown): CloudChatMessage | null => {
         id,
         role: normalizeRole(value.role),
         content,
+        model: String(value.model || value.model_id || "").trim() || undefined,
         model_id: String(value.model || value.model_id || "").trim() || undefined,
         model_display_name:
             String(value.model_display_name || value.model || value.model_id || "").trim() ||
@@ -197,7 +290,14 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
     if (!cleanId) return;
 
     const savedIds = readSavedChatIds();
-    if (savedIds.has(cleanId) || pendingChatSaves.has(cleanId)) return;
+    const savedMetadata = readSavedChatMetadata();
+    const metadataSignature = getChatMetadataSignature(chat);
+    if (
+        pendingChatSaves.has(cleanId) ||
+        (savedIds.has(cleanId) && savedMetadata.get(cleanId) === metadataSignature)
+    ) {
+        return;
+    }
 
     pendingChatSaves.add(cleanId);
     const data = await postChatHistory({
@@ -205,7 +305,8 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
         chat: {
             id: cleanId,
             title: String(chat.title || "Новый чат").trim() || "Новый чат",
-            mode: String(chat.mode || "chat").trim() || "chat",
+            mode: getCloudChatUiMode(chat.mode),
+            selected_models: normalizeSelectedModels(chat.selected_models),
         },
     });
 
@@ -213,7 +314,9 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
 
     if (data !== null) {
         savedIds.add(cleanId);
+        savedMetadata.set(cleanId, metadataSignature);
         writeSavedChatIds(savedIds);
+        writeSavedChatMetadata(savedMetadata);
     }
 };
 
@@ -245,6 +348,38 @@ export const saveCloudMessage = async (message: CloudMessagePayload) => {
     });
 };
 
+const persistCloudChatUiSettings = (chat: CloudChatSession) => {
+    const selectedModels = normalizeSelectedModels(chat.selected_models);
+    if (!chat.id || (!chat.mode && selectedModels.length === 0)) return;
+
+    writeSessionUiSettings(chat.id, {
+        activeMode: getCloudChatActiveMode(chat.mode),
+        uiMode: getCloudChatUiMode(chat.mode),
+        ...(selectedModels.length > 0
+            ? {
+                  parallelCount: selectedModels.length,
+                  selectedModels,
+                  selectedModel: selectedModels[0] || "",
+              }
+            : {}),
+    });
+};
+
+export const inferSelectedModelsFromMessages = (
+    messages: CloudChatMessage[]
+): string[] => {
+    const result: string[] = [];
+
+    [...messages].reverse().forEach((message) => {
+        const modelId = String(message.model || message.model_id || "").trim();
+        if (modelId && !result.includes(modelId)) {
+            result.push(modelId);
+        }
+    });
+
+    return result;
+};
+
 export const mergeCloudChatsIntoLocal = <T extends CloudChatSession>(
     localSessions: T[],
     cloudSessions: CloudChatSession[]
@@ -259,16 +394,23 @@ export const mergeCloudChatsIntoLocal = <T extends CloudChatSession>(
         const existing = byId.get(cloudSession.id);
 
         if (existing) {
-            byId.set(cloudSession.id, {
+            const nextSession = {
                 ...existing,
                 title: existing.title || cloudSession.title,
+                mode: cloudSession.mode || existing.mode,
+                selected_models: normalizeSelectedModels(cloudSession.selected_models).length
+                    ? normalizeSelectedModels(cloudSession.selected_models)
+                    : normalizeSelectedModels(existing.selected_models),
                 updatedAt: Math.max(existing.updatedAt || 0, cloudSession.updatedAt || 0),
-            });
+            };
+            byId.set(cloudSession.id, nextSession);
+            persistCloudChatUiSettings(nextSession);
             markCloudChatSaved(cloudSession.id);
             return;
         }
 
         byId.set(cloudSession.id, cloudSession as T);
+        persistCloudChatUiSettings(cloudSession);
         markCloudChatSaved(cloudSession.id);
     });
 
@@ -294,9 +436,16 @@ export const mergeCloudMessagesIntoSession = <T extends CloudChatSession>(
         });
     });
 
+    const mergedMessages = Array.from(byId.values());
+    const selectedModels = normalizeSelectedModels(session.selected_models);
+    const inferredSelectedModels = selectedModels.length
+        ? selectedModels
+        : inferSelectedModelsFromMessages(mergedMessages);
+
     return {
         ...session,
-        messages: Array.from(byId.values()),
+        selected_models: inferredSelectedModels,
+        messages: mergedMessages,
     };
 };
 
