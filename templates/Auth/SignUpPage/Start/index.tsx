@@ -14,6 +14,7 @@ import {
     normalizeUserEmail,
     setStoredUserEmail,
 } from "@/lib/userStorage";
+import { syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
 
 type ModelCatalogItem = {
     model_id: string;
@@ -139,7 +140,7 @@ const toVerifyEmailResponse = (value: unknown): VerifyEmailResponse | null => {
     };
 };
 
-const applyLoginState = (data: LoginResponse, cleanEmail: string) => {
+const applyLoginState = async (data: LoginResponse, cleanEmail: string) => {
     const resolvedFirstName = (data.firstName || "").trim();
     const resolvedLastName = (data.lastName || "").trim();
     const resolvedFullName = `${resolvedFirstName} ${resolvedLastName}`.trim();
@@ -163,6 +164,8 @@ const applyLoginState = (data: LoginResponse, cleanEmail: string) => {
         "ai_allowed_models",
         data.allowedModels || ""
     );
+
+    await syncCloudChatsToLocalStorage();
 
     const modelsCatalog: ModelCatalogItem[] = Array.isArray(data.modelsCatalog)
         ? data.modelsCatalog
@@ -365,7 +368,7 @@ const Start = () => {
                 return;
             }
 
-            applyLoginState(loginData, cleanEmail);
+            await applyLoginState(loginData, cleanEmail);
             localStorage.setItem("ai_remember_email", cleanEmail);
 
             router.push("/chat");
@@ -465,7 +468,7 @@ const Start = () => {
                 return;
             }
 
-            applyLoginState(loginData, cleanPendingEmail);
+            await applyLoginState(loginData, cleanPendingEmail);
             setPendingPassword("");
             router.push("/chat");
         } catch {
