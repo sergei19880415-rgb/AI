@@ -8,6 +8,12 @@ import Button from "@/components/Button";
 import Image from "@/components/Image";
 import Field from "@/components/Field";
 import Checkbox from "@/components/Checkbox";
+import {
+    getUserScopedKey,
+    migrateUserScopedStorage,
+    normalizeUserEmail,
+    setStoredUserEmail,
+} from "@/lib/userStorage";
 
 type Props = {
     onRequireEmailVerification: (email: string, message?: string) => void;
@@ -42,11 +48,11 @@ const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 
 const getSelectedModelKey = (userEmail: string) => {
-    return `ai_selected_model_${userEmail.trim()}`;
+    return getUserScopedKey("ai_selected_model_", userEmail);
 };
 
 const getParallelCountKey = (userEmail: string) => {
-    return `ai_parallel_count_${userEmail.trim()}`;
+    return getUserScopedKey("ai_parallel_count_", userEmail);
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -135,7 +141,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     }, [router, searchParams]);
 
     const handleLogin = async () => {
-        const cleanEmail = email.trim();
+        const cleanEmail = normalizeUserEmail(email, "");
         const cleanPassword = password.trim();
 
         if (!cleanEmail || !cleanPassword || isLoading) return;
@@ -177,7 +183,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             }
 
             if (data.success) {
-                localStorage.setItem("ai_user_email", cleanEmail);
+                setStoredUserEmail(cleanEmail);
+                migrateUserScopedStorage(cleanEmail);
                 localStorage.setItem(
                     "ai_session_token",
                     data.sessionToken || ""

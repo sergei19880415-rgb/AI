@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import TextInputDialog from "@/components/TextInputDialog";
 import { removeSessionUiSettings } from "@/lib/chatUiSettings";
+import { getUserScopedKey } from "@/lib/userStorage";
 
 type ChatMessage = {
     id: string;
@@ -22,16 +23,13 @@ type ChatSession = {
     isPinned?: boolean;
 };
 
-const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
 
 const getSessionsKey = () => {
-    return `ai_sessions_${getUserEmail()}`;
+    return getUserScopedKey("ai_sessions_");
 };
 
 const getProjectsKey = () => {
-    return `ai_projects_${getUserEmail()}`;
+    return getUserScopedKey("ai_projects_");
 };
 
 const readSessions = (): ChatSession[] => {
@@ -227,7 +225,7 @@ const RecentChats = () => {
         saveSessions(sortSessions(nextSessions));
         removeSessionUiSettings(sessionId);
 
-        const currentSessionKey = `ai_current_session_${getUserEmail()}`;
+        const currentSessionKey = getUserScopedKey("ai_current_session_");
         const savedCurrentId = localStorage.getItem(currentSessionKey) || "";
 
         if (savedCurrentId === sessionId) {

@@ -13,6 +13,7 @@ import {
     getSelectedModelsKey,
     getUiModeKey,
 } from "@/lib/chatUiSettings";
+import { getUserScopedKey, migrateUserScopedStorage } from "@/lib/userStorage";
 
 type ChatMessage = {
     id: string;
@@ -78,16 +79,12 @@ const getModelLogoSrc = (modelId?: string, provider?: string): string => {
     return "/images/logo-circle.png";
 };
 
-const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
-
 const getSessionsKey = () => {
-    return `ai_sessions_${getUserEmail()}`;
+    return getUserScopedKey("ai_sessions_");
 };
 
 const getCurrentSessionKey = () => {
-    return `ai_current_session_${getUserEmail()}`;
+    return getUserScopedKey("ai_current_session_");
 };
 
 const normalizePositiveInt = (value: unknown, fallback: number) => {
@@ -225,6 +222,8 @@ const ChatPage = () => {
     const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
 
     useEffect(() => {
+        migrateUserScopedStorage();
+
         const loadState = () => {
             const session = ensureSession(sessionIdFromUrl);
             applySessionUiSettingsToLegacyKeys(session.id);

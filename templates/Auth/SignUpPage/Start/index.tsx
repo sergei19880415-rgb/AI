@@ -8,6 +8,12 @@ import Button from "@/components/Button";
 import Field from "@/components/Field";
 import Checkbox from "@/components/Checkbox";
 import EmailVerificationForm from "@/components/Login/EmailVerificationForm";
+import {
+    getUserScopedKey,
+    migrateUserScopedStorage,
+    normalizeUserEmail,
+    setStoredUserEmail,
+} from "@/lib/userStorage";
 
 type ModelCatalogItem = {
     model_id: string;
@@ -49,11 +55,11 @@ const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
 const VERIFY_EMAIL_WEBHOOK_URL = "https://tgdomen.ru/webhook/verify-email";
 
 const getSelectedModelKey = (userEmail: string) => {
-    return `ai_selected_model_${userEmail.trim()}`;
+    return getUserScopedKey("ai_selected_model_", userEmail);
 };
 
 const getParallelCountKey = (userEmail: string) => {
-    return `ai_parallel_count_${userEmail.trim()}`;
+    return getUserScopedKey("ai_parallel_count_", userEmail);
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -138,7 +144,8 @@ const applyLoginState = (data: LoginResponse, cleanEmail: string) => {
     const resolvedLastName = (data.lastName || "").trim();
     const resolvedFullName = `${resolvedFirstName} ${resolvedLastName}`.trim();
 
-    localStorage.setItem("ai_user_email", cleanEmail);
+    setStoredUserEmail(cleanEmail);
+    migrateUserScopedStorage(cleanEmail);
     localStorage.setItem("ai_session_token", data.sessionToken || "");
     localStorage.setItem(
         "ai_session_expires_at",
@@ -246,7 +253,7 @@ const Start = () => {
 
     const handleSignUp = async () => {
         const cleanFirstName = firstName.trim();
-        const cleanEmail = email.trim();
+        const cleanEmail = normalizeUserEmail(email, "");
         const cleanPassword = password.trim();
         const cleanConfirmPassword = confirmPassword.trim();
 
@@ -370,7 +377,7 @@ const Start = () => {
     };
 
     const handleVerifyEmail = async () => {
-        const cleanPendingEmail = pendingEmail.trim();
+        const cleanPendingEmail = normalizeUserEmail(pendingEmail, "");
         const cleanPendingPassword = pendingPassword.trim();
         const cleanCode = verificationCode.trim();
 

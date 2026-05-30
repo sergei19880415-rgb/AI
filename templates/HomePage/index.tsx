@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/Layout";
 import Image from "@/components/Image";
+import { getUserScopedKey } from "@/lib/userStorage";
 
 type UiMode = "chat" | "image" | "video";
 
@@ -12,14 +13,10 @@ type ModelCatalogItem = {
     provider?: string;
 };
 
-const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
-
-const getSelectedModelKey = () => `ai_selected_model_${getUserEmail()}`;
-const getSelectedModelsKey = () => `ai_selected_models_${getUserEmail()}`;
-const getParallelCountKey = () => `ai_parallel_count_${getUserEmail()}`;
-const getUiModeKey = () => `ai_ui_mode_${getUserEmail()}`;
+const getSelectedModelKey = () => getUserScopedKey("ai_selected_model_");
+const getSelectedModelsKey = () => getUserScopedKey("ai_selected_models_");
+const getParallelCountKey = () => getUserScopedKey("ai_parallel_count_");
+const getUiModeKey = () => getUserScopedKey("ai_ui_mode_");
 
 const normalizePositiveInt = (value: unknown, fallback: number) => {
     const num = Number(value);

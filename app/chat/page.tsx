@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChatPage from "@/templates/ChatPage";
+import { getStoredUserEmail } from "@/lib/userStorage";
 
 export default function Page() {
     const router = useRouter();
@@ -10,8 +11,7 @@ export default function Page() {
     const [isAuthorized, setIsAuthorized] = useState(false);
 
     useEffect(() => {
-        const savedEmail = localStorage.getItem("ai_user_email") || "";
-        const cleanEmail = savedEmail.trim();
+        const cleanEmail = getStoredUserEmail("");
 
         if (!cleanEmail) {
             router.replace("/auth/sign-in");

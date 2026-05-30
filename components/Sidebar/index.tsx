@@ -9,6 +9,7 @@ import Menu from "./Menu";
 import Space from "./Space";
 import RecentChats from "./RecentChats";
 import User from "./User";
+import { getUserScopedKey } from "@/lib/userStorage";
 
 type Props = {
     visible: boolean;
@@ -30,16 +31,12 @@ type ChatSession = {
     updatedAt: number;
 };
 
-const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
-
 const getSessionsKey = () => {
-    return `ai_sessions_${getUserEmail()}`;
+    return getUserScopedKey("ai_sessions_");
 };
 
 const getCurrentSessionKey = () => {
-    return `ai_current_session_${getUserEmail()}`;
+    return getUserScopedKey("ai_current_session_");
 };
 
 const readSessions = (): ChatSession[] => {

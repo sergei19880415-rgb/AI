@@ -1,10 +1,10 @@
 import {
     applySessionUiSettingsToLegacyKeys,
-    getUserEmail,
     readSessionUiSettings,
     removeSessionUiSettings,
     writeSessionUiSettings,
 } from "@/lib/chatUiSettings";
+import { getUserScopedKey } from "@/lib/userStorage";
 
 export type ChatMessage = {
     id: string;
@@ -25,11 +25,11 @@ export type ChatSession = {
 };
 
 export const getSessionsKey = () => {
-    return `ai_sessions_${getUserEmail()}`;
+    return getUserScopedKey("ai_sessions_");
 };
 
 export const getCurrentSessionKey = () => {
-    return `ai_current_session_${getUserEmail()}`;
+    return getUserScopedKey("ai_current_session_");
 };
 
 export const readSessions = (): ChatSession[] => {
