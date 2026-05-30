@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Field from "@/components/Field";
 import Image from "@/components/Image";
 import Button from "@/components/Button";
+import { getUserScopedKey } from "@/lib/userStorage";
 
 type Props = {
     onClose?: () => void;
@@ -41,16 +42,12 @@ const categories = [
     },
 ];
 
-const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
-
 const getProjectsKey = () => {
-    return `ai_projects_${getUserEmail()}`;
+    return getUserScopedKey("ai_projects_");
 };
 
 const getProjectsMetaKey = () => {
-    return `ai_projects_meta_${getUserEmail()}`;
+    return getUserScopedKey("ai_projects_meta_");
 };
 
 const readProjects = (): string[] => {

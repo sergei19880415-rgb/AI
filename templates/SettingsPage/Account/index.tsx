@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Button from "@/components/Button";
+import { getStoredUserEmail } from "@/lib/userStorage";
 import TextInputDialog from "@/components/TextInputDialog";
 import Modal from "@/components/Modal";
 import TabContainer from "../TabContainer";
@@ -45,7 +46,7 @@ const Account = ({ onOpenPricing }: Props) => {
     useEffect(() => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
         const savedFullName = localStorage.getItem("ai_user_name");
-        const savedEmail = localStorage.getItem("ai_user_email") || "";
+        const savedEmail = getStoredUserEmail("");
 
         if (savedFirstName && savedFirstName.trim()) {
             setFirstName(savedFirstName.trim());

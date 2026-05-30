@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Head from "@/components/Login/Head";
 import Button from "@/components/Button";
+import { getStoredUserEmail, normalizeUserEmail } from "@/lib/userStorage";
 import Field from "@/components/Field";
 
 type Props = {
@@ -22,9 +23,9 @@ const VerifyCode = ({ title, onContinue }: Props) => {
     useEffect(() => {
         try {
             const rememberedEmail =
-                localStorage.getItem("ai_remember_email")?.trim() || "";
+                normalizeUserEmail(localStorage.getItem("ai_remember_email"), "");
             const currentEmail =
-                localStorage.getItem("ai_user_email")?.trim() || "";
+                getStoredUserEmail("");
             const finalEmail = currentEmail || rememberedEmail;
 
             if (finalEmail) {

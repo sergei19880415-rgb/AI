@@ -1,3 +1,5 @@
+import { getStoredUserEmail, getUserScopedKey } from "@/lib/userStorage";
+
 export type SessionImageOptionState = {
     quality: string;
     size: string;
@@ -14,33 +16,30 @@ export type SessionUiSettings = {
     attachedFileMimeType?: string;
 };
 
-export const getUserEmail = () => {
-    if (typeof window === "undefined") return "guest";
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
+export const getUserEmail = () => getStoredUserEmail("guest");
 
 export const getSelectedModelKey = () => {
-    return `ai_selected_model_${getUserEmail()}`;
+    return getUserScopedKey("ai_selected_model_");
 };
 
 export const getSelectedModelsKey = () => {
-    return `ai_selected_models_${getUserEmail()}`;
+    return getUserScopedKey("ai_selected_models_");
 };
 
 export const getParallelCountKey = () => {
-    return `ai_parallel_count_${getUserEmail()}`;
+    return getUserScopedKey("ai_parallel_count_");
 };
 
 export const getActiveModeKey = () => {
-    return `ai_active_mode_${getUserEmail()}`;
+    return getUserScopedKey("ai_active_mode_");
 };
 
 export const getUiModeKey = () => {
-    return `ai_ui_mode_${getUserEmail()}`;
+    return getUserScopedKey("ai_ui_mode_");
 };
 
 const getSessionUiSettingsKey = () => {
-    return `ai_chat_ui_settings_${getUserEmail()}`;
+    return getUserScopedKey("ai_chat_ui_settings_");
 };
 
 export const readAllSessionUiSettings = (): Record<string, SessionUiSettings> => {

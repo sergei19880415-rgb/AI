@@ -1,7 +1,7 @@
 type Props = {
     title: string;
     description: string;
-    children: React.ReactNode;
+    children?: React.ReactNode;
 };
 
 const Line = ({ title, description, children }: Props) => (

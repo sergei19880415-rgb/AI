@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
+import { getStoredUserEmail } from "@/lib/userStorage";
 
 type Props = {
     isCollapsed: boolean;
@@ -21,7 +22,7 @@ const User = ({ isCollapsed }: Props) => {
     const loadProfileFromStorage = () => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
         const savedFullName = localStorage.getItem("ai_user_name");
-        const savedEmail = localStorage.getItem("ai_user_email") || "";
+        const savedEmail = getStoredUserEmail("");
         const savedPlanType = localStorage.getItem("ai_plan_type") || "";
 
         if (savedFirstName && savedFirstName.trim()) {

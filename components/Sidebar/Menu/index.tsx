@@ -50,7 +50,7 @@ const Menu = ({ isCollapsed }: Props) => {
                         item.href ? (
                             <NavLink
                                 isCollapsed={isCollapsed}
-                                item={item}
+                                item={item as MenuItem & { href: string }}
                                 key={index}
                             />
                         ) : (

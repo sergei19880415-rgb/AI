@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import AnimateHeight from "react-animate-height";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
+import { getUserScopedKey } from "@/lib/userStorage";
 
 type ChatMessage = {
     id: string;
@@ -40,20 +41,17 @@ const fallbackProjectIcons = [
     "/images/logo.svg",
 ];
 
-const getUserEmail = () => {
-    return (localStorage.getItem("ai_user_email") || "guest").trim();
-};
 
 const getSessionsKey = () => {
-    return `ai_sessions_${getUserEmail()}`;
+    return getUserScopedKey("ai_sessions_");
 };
 
 const getProjectsKey = () => {
-    return `ai_projects_${getUserEmail()}`;
+    return getUserScopedKey("ai_projects_");
 };
 
 const getProjectsMetaKey = () => {
-    return `ai_projects_meta_${getUserEmail()}`;
+    return getUserScopedKey("ai_projects_meta_");
 };
 
 const readSessions = (): ChatSession[] => {
@@ -443,7 +441,7 @@ const Space = () => {
         const nextSessions = sessions.filter((item) => item.id !== sessionId);
         saveSessions(nextSessions);
 
-        const currentSessionKey = `ai_current_session_${getUserEmail()}`;
+        const currentSessionKey = getUserScopedKey("ai_current_session_");
         const savedCurrentId = localStorage.getItem(currentSessionKey) || "";
 
         if (savedCurrentId === sessionId) {

@@ -31,6 +31,7 @@ import {
     readSessionUiSettings,
     writeSessionUiSettings,
 } from "@/lib/chatUiSettings";
+import { getStoredUserEmail, getUserScopedKey } from "@/lib/userStorage";
 
 const WEBHOOK_URL =
     "https://tgdomen.ru/webhook/3bcfce39-4b24-4493-b3a7-cab0030e8a36";
@@ -169,22 +170,14 @@ const getFilePreviewMeta = (
     return { icon: "folders", iconClassName: "fill-gray-500", badge: "FILE" };
 };
 
-const getUserEmail = () => {
-    if (typeof window === "undefined") return "";
-    return (localStorage.getItem("ai_user_email") || "")
-        .toString()
-        .trim()
-        .toLowerCase();
-};
+const getUserEmail = () => getStoredUserEmail("");
 
 const getSessionToken = () => {
     if (typeof window === "undefined") return "";
     return (localStorage.getItem("ai_session_token") || "").toString().trim();
 };
 
-const getUserStorageKey = () => {
-    return getUserEmail() || "unauthorized";
-};
+const getUserStorageKey = () => getUserEmail() || "unauthorized";
 
 const requireUserEmail = () => {
     const email = getUserEmail();
@@ -209,31 +202,31 @@ const requireSessionToken = () => {
 };
 
 const getSessionsKey = () => {
-    return `ai_sessions_${getUserStorageKey()}`;
+    return getUserScopedKey("ai_sessions_", getUserStorageKey());
 };
 
 const getCurrentSessionKey = () => {
-    return `ai_current_session_${getUserStorageKey()}`;
+    return getUserScopedKey("ai_current_session_", getUserStorageKey());
 };
 
 const getSelectedModelKey = () => {
-    return `ai_selected_model_${getUserStorageKey()}`;
+    return getUserScopedKey("ai_selected_model_", getUserStorageKey());
 };
 
 const getSelectedModelsKey = () => {
-    return `ai_selected_models_${getUserStorageKey()}`;
+    return getUserScopedKey("ai_selected_models_", getUserStorageKey());
 };
 
 const getParallelCountKey = () => {
-    return `ai_parallel_count_${getUserStorageKey()}`;
+    return getUserScopedKey("ai_parallel_count_", getUserStorageKey());
 };
 
 const getActiveModeKey = () => {
-    return `ai_active_mode_${getUserStorageKey()}`;
+    return getUserScopedKey("ai_active_mode_", getUserStorageKey());
 };
 
 const getUiModeKey = () => {
-    return `ai_ui_mode_${getUserStorageKey()}`;
+    return getUserScopedKey("ai_ui_mode_", getUserStorageKey());
 };
 
 const normalizePositiveInt = (value: unknown, fallback: number) => {
@@ -566,7 +559,7 @@ const parseFileUploadResponse = (
                 return {
                     success: responseOk,
                     authError: false,
-                    message: data,
+                    message: data as string,
                 };
             }
         }
