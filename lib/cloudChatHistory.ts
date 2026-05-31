@@ -13,7 +13,6 @@ const pendingMessageSaves = new Map<string, Promise<boolean>>();
 const pendingMessageLoads = new Map<string, Promise<CloudChatMessage[]>>();
 const pendingDeletes = new Map<string, Promise<boolean>>();
 let pendingChatsLoad: Promise<CloudChatSession[] | null> | null = null;
-let pendingForcedSync: Promise<boolean> | null = null;
 let lastFocusChatsLoadAt = 0;
 const currentSessionSavedChatIds = new Set<string>();
 
@@ -320,26 +319,11 @@ const postChatHistory = async (payload: Record<string, unknown>) => {
       handleCloudAuthError();
     }
 
-    if (!response.ok) return null;
+    if (!response.ok || !isRecord(data) || data.ok !== true) return null;
     return data;
   } catch {
     return null;
   }
-};
-
-const getCloudResponseField = (
-  value: Record<string, unknown>,
-  field: string,
-) => {
-  if (field in value) return value[field];
-
-  const nestedData = value.data;
-  if (isRecord(nestedData) && field in nestedData) return nestedData[field];
-
-  const nestedJson = value.json;
-  if (isRecord(nestedJson) && field in nestedJson) return nestedJson[field];
-
-  return undefined;
 };
 
 const isSuccessfulCloudResponse = (
@@ -348,13 +332,8 @@ const isSuccessfulCloudResponse = (
 ): value is Record<string, unknown> => {
   if (!isRecord(value)) return false;
   if (hasAuthError(value)) return false;
-  if (getCloudResponseField(value, "ok") !== true) return false;
-  if (
-    expectedAction &&
-    getCloudResponseField(value, "action") !== expectedAction
-  ) {
-    return false;
-  }
+  if (value.ok !== true) return false;
+  if (expectedAction && value.action !== expectedAction) return false;
   return true;
 };
 
@@ -623,19 +602,7 @@ export const deleteCloudChat = async (chatId: string) => {
       handleCloudAuthError();
     }
 
-    if (!isSuccessfulCloudResponse(data, "delete_chat")) return false;
-
-    if (!pendingForcedSync) {
-      pendingForcedSync = syncCloudChatsToLocalStorage({
-        force: true,
-        source: "manual",
-      }).finally(() => {
-        pendingForcedSync = null;
-      });
-    }
-
-    await pendingForcedSync;
-    return true;
+    return isSuccessfulCloudResponse(data, "delete_chat");
   })().finally(() => {
     pendingDeletes.delete(cleanId);
   });
