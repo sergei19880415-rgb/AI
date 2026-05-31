@@ -259,14 +259,24 @@ const postChatHistory = async (payload: Record<string, unknown>) => {
         });
 
         const raw = await response.text();
-        if (!response.ok) return null;
-        if (!raw.trim()) return { success: true };
+        let data: unknown = null;
 
-        try {
-            return JSON.parse(raw) as unknown;
-        } catch {
-            return { success: true };
+        if (raw.trim()) {
+            try {
+                data = JSON.parse(raw) as unknown;
+            } catch {
+                data = { success: true };
+            }
+        } else {
+            data = { success: true };
         }
+
+        if (hasAuthError(data)) {
+            handleCloudAuthError();
+        }
+
+        if (!response.ok) return null;
+        return data;
     } catch {
         return null;
     }
@@ -339,9 +349,11 @@ const normalizeCloudMessage = (value: unknown): CloudChatMessage | null => {
     };
 };
 
-export const getCloudChats = async () => {
+export const getCloudChats = async (): Promise<CloudChatSession[] | null> => {
     const deletedIds = readDeletedChatIds();
     const data = await postChatHistory({ action: "get_chats" });
+    if (data === null) return null;
+
     return unwrapList(data, "chats")
         .map(normalizeCloudChat)
         .filter((item): item is CloudChatSession => Boolean(item))
@@ -478,40 +490,56 @@ export const mergeCloudChatsIntoLocal = <T extends CloudChatSession>(
     cloudSessions: CloudChatSession[]
 ): T[] => {
     const deletedIds = readDeletedChatIds();
-    const byId = new Map<string, T>();
+    const localById = new Map<string, T>();
 
     localSessions.forEach((session) => {
         if (!deletedIds.has(session.id)) {
-            byId.set(session.id, session);
+            localById.set(session.id, session);
         }
     });
 
-    cloudSessions.forEach((cloudSession) => {
-        if (deletedIds.has(cloudSession.id)) return;
-        const existing = byId.get(cloudSession.id);
-
-        if (existing) {
+    const reconciledSessions = cloudSessions
+        .filter((cloudSession) => !deletedIds.has(cloudSession.id))
+        .map((cloudSession) => {
+            const existing = localById.get(cloudSession.id);
+            const cloudSelectedModels = normalizeSelectedModels(
+                cloudSession.selected_models
+            );
+            const existingSelectedModels = normalizeSelectedModels(
+                existing?.selected_models
+            );
             const nextSession = {
-                ...existing,
-                title: existing.title || cloudSession.title,
-                mode: cloudSession.mode || existing.mode,
-                selected_models: normalizeSelectedModels(cloudSession.selected_models).length
-                    ? normalizeSelectedModels(cloudSession.selected_models)
-                    : normalizeSelectedModels(existing.selected_models),
-                updatedAt: Math.max(existing.updatedAt || 0, cloudSession.updatedAt || 0),
-            };
-            byId.set(cloudSession.id, nextSession);
+                ...(existing || {}),
+                ...cloudSession,
+                messages: existing?.messages || cloudSession.messages || [],
+                title: cloudSession.title || existing?.title || "Новый чат",
+                mode: cloudSession.mode || existing?.mode,
+                selected_models: cloudSelectedModels.length
+                    ? cloudSelectedModels
+                    : existingSelectedModels,
+                updatedAt: cloudSession.updatedAt || existing?.updatedAt || Date.now(),
+            } as T;
+
             persistCloudChatUiSettings(nextSession);
             markCloudChatSaved(cloudSession.id);
-            return;
-        }
+            return nextSession;
+        });
 
-        byId.set(cloudSession.id, cloudSession as T);
-        persistCloudChatUiSettings(cloudSession);
-        markCloudChatSaved(cloudSession.id);
+    const cloudIds = new Set(reconciledSessions.map((session) => session.id));
+    const savedIds = readSavedChatIds();
+    const savedMetadata = readSavedChatMetadata();
+
+    Array.from(savedIds).forEach((id) => {
+        if (!cloudIds.has(id)) {
+            savedIds.delete(id);
+            savedMetadata.delete(id);
+        }
     });
 
-    return Array.from(byId.values()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    writeSavedChatIds(savedIds);
+    writeSavedChatMetadata(savedMetadata);
+
+    return reconciledSessions.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 };
 
 export const mergeCloudMessagesIntoSession = <T extends CloudChatSession>(
@@ -550,7 +578,7 @@ export const syncCloudChatsToLocalStorage = async () => {
     if (!isBrowser()) return;
 
     const cloudSessions = await getCloudChats();
-    if (!cloudSessions.length) return;
+    if (cloudSessions === null) return;
 
     let localSessions: CloudChatSession[] = [];
 
