@@ -14,7 +14,7 @@ import {
     normalizeUserEmail,
     setStoredUserEmail,
 } from "@/lib/userStorage";
-import { syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
+import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
 
 type ModelCatalogItem = {
     model_id: string;

@@ -24,7 +24,7 @@ import {
     mergeCloudMessagesIntoSession,
     normalizeSelectedModels,
     saveCloudChat,
-} from "@/lib/chatHistoryCloud";
+} from "@/lib/cloudChatHistory";
 
 type ChatMessage = {
     id: string;
@@ -340,15 +340,16 @@ const ChatPage = () => {
             setVisibleModelIds(getVisibleModelIds());
             setModelsCatalog(getModelsCatalog());
 
-            void loadCloudChats();
-            void loadCloudMessages(session.id);
-
             if (sessionIdFromUrl !== session.id) {
                 router.replace(`/chat?id=${session.id}`);
             }
+
+            return session;
         };
 
-        loadState();
+        const activeSession = loadState();
+        void loadCloudChats();
+        void loadCloudMessages(activeSession.id);
 
         window.addEventListener("ai-chat-updated", loadState);
         window.addEventListener("ai-selected-model-updated", loadState);

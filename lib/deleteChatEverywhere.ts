@@ -6,7 +6,7 @@ import {
     sortSessions,
     type ChatSession,
 } from "@/lib/chatSessionUi";
-import { deleteCloudChat, syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
+import { deleteCloudChat } from "@/lib/cloudChatHistory";
 
 export type DeleteChatEverywhereResult = {
     deleted: boolean;
@@ -49,11 +49,7 @@ export const deleteChatEverywhere = (
         }
     }
 
-    void deleteCloudChat(cleanId).then((deleted) => {
-        if (deleted) {
-            void syncCloudChatsToLocalStorage();
-        }
-    });
+    void deleteCloudChat(cleanId);
 
     return {
         deleted: true,
