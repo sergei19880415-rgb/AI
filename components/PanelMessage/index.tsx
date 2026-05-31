@@ -32,7 +32,7 @@ import {
     writeSessionUiSettings,
 } from "@/lib/chatUiSettings";
 import { getStoredUserEmail, getUserScopedKey } from "@/lib/userStorage";
-import { saveCloudChat, saveCloudMessage } from "@/lib/cloudChatHistory";
+import { saveCloudMessage } from "@/lib/cloudChatHistory";
 
 const WEBHOOK_URL =
     "https://tgdomen.ru/webhook/3bcfce39-4b24-4493-b3a7-cab0030e8a36";
@@ -960,12 +960,6 @@ const PanelMessage = () => {
         };
 
         saveSessions([nextSession, ...sessions]);
-        void saveCloudChat({
-            id: nextSession.id,
-            title: nextSession.title,
-            mode: activeMode,
-            selected_models: visibleModels.map((item) => item.modelId),
-        });
         localStorage.setItem(getCurrentSessionKey(), nextSession.id);
         window.history.replaceState({}, "", `/chat?id=${nextSession.id}`);
 
@@ -1439,12 +1433,6 @@ const PanelMessage = () => {
             (item) => item.id === currentSession!.id
         );
         if (savedCurrentSession) {
-            await saveCloudChat({
-                id: savedCurrentSession.id,
-                title: savedCurrentSession.title,
-                mode: requestMode,
-                selected_models: selectedModels.map((item) => item.modelId),
-            });
             await saveMessageToCloud(savedCurrentSession, userMessage);
         }
         localStorage.setItem(getCurrentSessionKey(), currentSession.id);

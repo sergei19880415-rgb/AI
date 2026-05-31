@@ -15,6 +15,7 @@ const pendingDeletes = new Map<string, Promise<boolean>>();
 let pendingChatsLoad: Promise<CloudChatSession[] | null> | null = null;
 let pendingForcedSync: Promise<boolean> | null = null;
 let lastFocusChatsLoadAt = 0;
+const currentSessionSavedChatIds = new Set<string>();
 
 export type CloudChatMessageRole = "user" | "assistant" | "system";
 
@@ -237,6 +238,7 @@ const markCloudChatDeletedLocally = (chatId: string) => {
 
   const savedIds = readSavedChatIds();
   savedIds.delete(cleanId);
+  currentSessionSavedChatIds.delete(cleanId);
   writeSavedChatIds(savedIds);
 
   const savedMetadata = readSavedChatMetadata();
@@ -304,16 +306,14 @@ const postChatHistory = async (payload: Record<string, unknown>) => {
     });
 
     const raw = await response.text();
+    if (!raw.trim()) return null;
+
     let data: unknown = null;
 
-    if (raw.trim()) {
-      try {
-        data = JSON.parse(raw) as unknown;
-      } catch {
-        data = { success: true };
-      }
-    } else {
-      data = { success: true };
+    try {
+      data = JSON.parse(raw) as unknown;
+    } catch {
+      return null;
     }
 
     if (hasAuthError(data)) {
@@ -325,6 +325,37 @@ const postChatHistory = async (payload: Record<string, unknown>) => {
   } catch {
     return null;
   }
+};
+
+const getCloudResponseField = (
+  value: Record<string, unknown>,
+  field: string,
+) => {
+  if (field in value) return value[field];
+
+  const nestedData = value.data;
+  if (isRecord(nestedData) && field in nestedData) return nestedData[field];
+
+  const nestedJson = value.json;
+  if (isRecord(nestedJson) && field in nestedJson) return nestedJson[field];
+
+  return undefined;
+};
+
+const isSuccessfulCloudResponse = (
+  value: unknown,
+  expectedAction?: string,
+): value is Record<string, unknown> => {
+  if (!isRecord(value)) return false;
+  if (hasAuthError(value)) return false;
+  if (getCloudResponseField(value, "ok") !== true) return false;
+  if (
+    expectedAction &&
+    getCloudResponseField(value, "action") !== expectedAction
+  ) {
+    return false;
+  }
+  return true;
 };
 
 const unwrapList = (value: unknown, key: "chats" | "messages") => {
@@ -355,6 +386,22 @@ const unwrapRequiredList = (value: unknown, key: "chats" | "messages") => {
   }
 
   return null;
+};
+
+const reconcileSavedChatIdsFromCloud = (cloudSessions: CloudChatSession[]) => {
+  const cloudIds = new Set(
+    cloudSessions.map((item) => String(item.id || "").trim()).filter(Boolean),
+  );
+
+  currentSessionSavedChatIds.clear();
+  cloudIds.forEach((id) => currentSessionSavedChatIds.add(id));
+  writeSavedChatIds(cloudIds);
+
+  const savedMetadata = readSavedChatMetadata();
+  Array.from(savedMetadata.keys()).forEach((id) => {
+    if (!cloudIds.has(id)) savedMetadata.delete(id);
+  });
+  writeSavedChatMetadata(savedMetadata);
 };
 
 const normalizeCloudChat = (value: unknown): CloudChatSession | null => {
@@ -426,15 +473,18 @@ const loadCloudChats = async (): Promise<CloudChatSession[] | null> => {
   console.log("cloud get_chats");
 
   const data = await postChatHistory({ action: "get_chats" });
-  if (data === null) return null;
+  if (!isSuccessfulCloudResponse(data)) return null;
 
   const chatList = unwrapRequiredList(data, "chats");
   if (chatList === null) return null;
 
-  return chatList
+  const cloudSessions = chatList
     .map(normalizeCloudChat)
     .filter((item): item is CloudChatSession => Boolean(item))
     .filter((item) => !deletedIds.has(item.id));
+
+  reconcileSavedChatIdsFromCloud(cloudSessions);
+  return cloudSessions;
 };
 
 export const getCloudChats = async (
@@ -505,11 +555,12 @@ const saveCloudChatPayload = async (chat: CloudChatPayload) => {
     },
   });
 
-  if (data === null || hasAuthError(data)) return false;
+  if (!isSuccessfulCloudResponse(data, "save_chat")) return false;
 
   const savedIds = readSavedChatIds();
   const savedMetadata = readSavedChatMetadata();
   savedIds.add(cleanId);
+  currentSessionSavedChatIds.add(cleanId);
   savedMetadata.set(cleanId, metadataSignature);
   writeSavedChatIds(savedIds);
   writeSavedChatMetadata(savedMetadata);
@@ -521,8 +572,7 @@ export const ensureCloudChatSaved = async (chat: CloudChatPayload) => {
   const cleanId = String(chat.id || "").trim();
   if (!cleanId || readDeletedChatIds().has(cleanId)) return false;
 
-  const savedIds = readSavedChatIds();
-  if (savedIds.has(cleanId)) return true;
+  if (currentSessionSavedChatIds.has(cleanId)) return true;
 
   const pendingSave = pendingChatSaves.get(cleanId);
   if (pendingSave) return pendingSave;
@@ -539,8 +589,7 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
   const cleanId = String(chat.id || "").trim();
   if (!cleanId || readDeletedChatIds().has(cleanId)) return false;
 
-  const savedIds = readSavedChatIds();
-  if (savedIds.has(cleanId)) return true;
+  if (currentSessionSavedChatIds.has(cleanId)) return true;
 
   const pendingSave = pendingChatSaves.get(cleanId);
   if (pendingSave) return pendingSave;
@@ -574,7 +623,7 @@ export const deleteCloudChat = async (chatId: string) => {
       handleCloudAuthError();
     }
 
-    if (data === null) return false;
+    if (!isSuccessfulCloudResponse(data, "delete_chat")) return false;
 
     if (!pendingForcedSync) {
       pendingForcedSync = syncCloudChatsToLocalStorage({
@@ -601,6 +650,7 @@ export const markCloudChatSaved = (chatId: string) => {
 
   const savedIds = readSavedChatIds();
   savedIds.add(cleanId);
+  currentSessionSavedChatIds.add(cleanId);
   writeSavedChatIds(savedIds);
 };
 
@@ -626,7 +676,7 @@ export const saveCloudMessage = async (
         id: cleanChatId,
       });
       if (!isChatSaved) return false;
-    } else if (!readSavedChatIds().has(cleanChatId)) {
+    } else if (!currentSessionSavedChatIds.has(cleanChatId)) {
       return false;
     }
 
@@ -645,7 +695,7 @@ export const saveCloudMessage = async (
       },
     });
 
-    const saved = data !== null && !hasAuthError(data);
+    const saved = isSuccessfulCloudResponse(data, "save_message");
     if (saved) {
       const latestSavedMessageIds = readSavedMessageIds();
       latestSavedMessageIds.add(messageSaveKey);
@@ -790,10 +840,26 @@ export const syncCloudChatsToLocalStorage = async (
     localSessions = [];
   }
 
+  const nextSessions = mergeCloudChatsIntoLocal(localSessions, cloudSessions);
   localStorage.setItem(
     getUserScopedKey("ai_sessions_"),
-    JSON.stringify(mergeCloudChatsIntoLocal(localSessions, cloudSessions)),
+    JSON.stringify(nextSessions),
   );
+
+  const currentSessionKey = getUserScopedKey("ai_current_session_");
+  const currentSessionId = localStorage.getItem(currentSessionKey) || "";
+  if (
+    currentSessionId &&
+    !nextSessions.some((item) => item.id === currentSessionId)
+  ) {
+    const nextCurrentSessionId = nextSessions[0]?.id || "";
+    if (nextCurrentSessionId) {
+      localStorage.setItem(currentSessionKey, nextCurrentSessionId);
+    } else {
+      localStorage.removeItem(currentSessionKey);
+    }
+  }
+
   window.dispatchEvent(new Event("ai-chat-sessions-updated"));
   window.dispatchEvent(new Event("ai-chat-updated"));
 
