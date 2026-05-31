@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
+import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
 
 const hasSessionToken = () => {
     return Boolean(localStorage.getItem("ai_session_token"));
@@ -9,20 +9,18 @@ const hasSessionToken = () => {
 
 const CloudChatHistorySync = () => {
     const syncInProgressRef = useRef(false);
-    const lastSyncAtRef = useRef(0);
 
     const refreshCloudChats = useCallback(async (force = false) => {
         if (!hasSessionToken()) return;
         if (syncInProgressRef.current) return;
 
-        const now = Date.now();
-        if (!force && now - lastSyncAtRef.current < 10000) return;
-
         syncInProgressRef.current = true;
-        lastSyncAtRef.current = now;
 
         try {
-            await syncCloudChatsToLocalStorage();
+            await syncCloudChatsToLocalStorage({
+                force,
+                source: force ? "startup" : "focus",
+            });
         } finally {
             syncInProgressRef.current = false;
         }
@@ -32,12 +30,12 @@ const CloudChatHistorySync = () => {
         void refreshCloudChats(true);
 
         const handleFocus = () => {
-            void refreshCloudChats(true);
+            void refreshCloudChats(false);
         };
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "visible") {
-                void refreshCloudChats(true);
+                void refreshCloudChats(false);
             }
         };
 

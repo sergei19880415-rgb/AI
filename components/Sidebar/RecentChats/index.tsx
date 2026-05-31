@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import TextInputDialog from "@/components/TextInputDialog";
-import { syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
+import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
 import { deleteChatEverywhere } from "@/lib/deleteChatEverywhere";
 import { getUserScopedKey } from "@/lib/userStorage";
 
@@ -105,20 +105,18 @@ const RecentChats = () => {
     const [existingProjects, setExistingProjects] = useState<string[]>([]);
     const menuRef = useRef<HTMLDivElement | null>(null);
     const cloudSyncInProgressRef = useRef(false);
-    const lastCloudSyncAtRef = useRef(0);
 
     const refreshCloudSessions = useCallback(async (force = false) => {
         if (!localStorage.getItem("ai_session_token")) return;
         if (cloudSyncInProgressRef.current) return;
 
-        const now = Date.now();
-        if (!force && now - lastCloudSyncAtRef.current < 10000) return;
-
         cloudSyncInProgressRef.current = true;
-        lastCloudSyncAtRef.current = now;
 
         try {
-            const synced = await syncCloudChatsToLocalStorage();
+            const synced = await syncCloudChatsToLocalStorage({
+                force,
+                source: force ? "startup" : "focus",
+            });
             if (synced) {
                 setSessions(sortSessions(readSessions()));
             }

@@ -32,7 +32,7 @@ import {
     writeSessionUiSettings,
 } from "@/lib/chatUiSettings";
 import { getStoredUserEmail, getUserScopedKey } from "@/lib/userStorage";
-import { saveCloudChat, saveCloudMessage } from "@/lib/chatHistoryCloud";
+import { saveCloudChat, saveCloudMessage } from "@/lib/cloudChatHistory";
 
 const WEBHOOK_URL =
     "https://tgdomen.ru/webhook/3bcfce39-4b24-4493-b3a7-cab0030e8a36";
