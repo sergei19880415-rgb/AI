@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import TextInputDialog from "@/components/TextInputDialog";
 import { removeSessionUiSettings } from "@/lib/chatUiSettings";
-import { deleteCloudChat } from "@/lib/chatHistoryCloud";
+import { deleteCloudChat, syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
 import { getUserScopedKey } from "@/lib/userStorage";
 
 type ChatMessage = {
@@ -104,6 +104,28 @@ const RecentChats = () => {
     const [projectSessionId, setProjectSessionId] = useState<string | null>(null);
     const [existingProjects, setExistingProjects] = useState<string[]>([]);
     const menuRef = useRef<HTMLDivElement | null>(null);
+    const cloudSyncInProgressRef = useRef(false);
+    const lastCloudSyncAtRef = useRef(0);
+
+    const refreshCloudSessions = useCallback(async (force = false) => {
+        if (!localStorage.getItem("ai_session_token")) return;
+        if (cloudSyncInProgressRef.current) return;
+
+        const now = Date.now();
+        if (!force && now - lastCloudSyncAtRef.current < 10000) return;
+
+        cloudSyncInProgressRef.current = true;
+        lastCloudSyncAtRef.current = now;
+
+        try {
+            const synced = await syncCloudChatsToLocalStorage();
+            if (synced) {
+                setSessions(sortSessions(readSessions()));
+            }
+        } finally {
+            cloudSyncInProgressRef.current = false;
+        }
+    }, []);
 
     useEffect(() => {
         const loadSessions = () => {
@@ -111,6 +133,7 @@ const RecentChats = () => {
         };
 
         loadSessions();
+        void refreshCloudSessions(true);
 
         window.addEventListener("ai-chat-sessions-updated", loadSessions);
         window.addEventListener("ai-chat-updated", loadSessions);
@@ -119,7 +142,34 @@ const RecentChats = () => {
             window.removeEventListener("ai-chat-sessions-updated", loadSessions);
             window.removeEventListener("ai-chat-updated", loadSessions);
         };
-    }, []);
+    }, [refreshCloudSessions]);
+
+    useEffect(() => {
+        const handleFocus = () => {
+            void refreshCloudSessions(true);
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void refreshCloudSessions(true);
+            }
+        };
+
+        const intervalId = window.setInterval(() => {
+            if (document.visibilityState === "visible") {
+                void refreshCloudSessions();
+            }
+        }, 45000);
+
+        window.addEventListener("focus", handleFocus);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener("focus", handleFocus);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [refreshCloudSessions]);
 
     useEffect(() => {
         const loadProjects = () => {
@@ -225,7 +275,11 @@ const RecentChats = () => {
         const nextSessions = sessions.filter((item) => item.id !== sessionId);
         saveSessions(sortSessions(nextSessions));
         removeSessionUiSettings(sessionId);
-        void deleteCloudChat(sessionId);
+        void deleteCloudChat(sessionId).then((deleted) => {
+            if (deleted) {
+                void refreshCloudSessions(true);
+            }
+        });
 
         const currentSessionKey = getUserScopedKey("ai_current_session_");
         const savedCurrentId = localStorage.getItem(currentSessionKey) || "";

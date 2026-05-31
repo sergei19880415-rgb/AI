@@ -411,7 +411,7 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
 
 export const deleteCloudChat = async (chatId: string) => {
     const cleanId = String(chatId || "").trim();
-    if (!cleanId) return;
+    if (!cleanId) return false;
 
     markCloudChatDeletedLocally(cleanId);
 
@@ -423,6 +423,8 @@ export const deleteCloudChat = async (chatId: string) => {
     if (hasAuthError(data)) {
         handleCloudAuthError();
     }
+
+    return data !== null;
 };
 
 export const markCloudChatSaved = (chatId: string) => {
@@ -575,10 +577,10 @@ export const mergeCloudMessagesIntoSession = <T extends CloudChatSession>(
 };
 
 export const syncCloudChatsToLocalStorage = async () => {
-    if (!isBrowser()) return;
+    if (!isBrowser()) return false;
 
     const cloudSessions = await getCloudChats();
-    if (cloudSessions === null) return;
+    if (cloudSessions === null) return false;
 
     let localSessions: CloudChatSession[] = [];
 
@@ -596,4 +598,6 @@ export const syncCloudChatsToLocalStorage = async () => {
     );
     window.dispatchEvent(new Event("ai-chat-sessions-updated"));
     window.dispatchEvent(new Event("ai-chat-updated"));
+
+    return true;
 };

@@ -7,7 +7,7 @@ import AnimateHeight from "react-animate-height";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
 import { removeSessionUiSettings } from "@/lib/chatUiSettings";
-import { deleteCloudChat } from "@/lib/chatHistoryCloud";
+import { deleteCloudChat, syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
 import { getUserScopedKey } from "@/lib/userStorage";
 
 type ChatMessage = {
@@ -443,7 +443,11 @@ const Space = () => {
         const nextSessions = sessions.filter((item) => item.id !== sessionId);
         saveSessions(nextSessions);
         removeSessionUiSettings(sessionId);
-        void deleteCloudChat(sessionId);
+        void deleteCloudChat(sessionId).then((deleted) => {
+            if (deleted) {
+                void syncCloudChatsToLocalStorage();
+            }
+        });
 
         const currentSessionKey = getUserScopedKey("ai_current_session_");
         const savedCurrentId = localStorage.getItem(currentSessionKey) || "";
