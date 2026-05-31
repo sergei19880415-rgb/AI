@@ -839,21 +839,31 @@ const PanelMessage = () => {
         return String(catalogItem?.provider || fallback || "").trim();
     };
 
-    const saveMessageToCloud = (sessionId: string, message: ChatMessage) => {
-        if (!sessionId || !message.id || message.isLoading) return;
+    const getCloudChatPayload = (session: ChatSession) => ({
+        id: session.id,
+        title: session.title || "Новый чат",
+        mode: activeMode,
+        selected_models: visibleModels.map((item) => item.modelId),
+    });
 
-        void saveCloudMessage({
-            id: message.id,
-            chat_id: sessionId,
-            role: message.role,
-            content: message.content,
-            model: message.model_id || "",
-            provider: getProviderForModel(message.model_id),
-            file_name:
-                message.attached_file_name ||
-                message.attached_file_mime_type ||
-                "",
-        });
+    const saveMessageToCloud = async (session: ChatSession, message: ChatMessage) => {
+        if (!session.id || !message.id || message.isLoading) return false;
+
+        return saveCloudMessage(
+            {
+                id: message.id,
+                chat_id: session.id,
+                role: message.role,
+                content: message.content,
+                model: message.model_id || "",
+                provider: getProviderForModel(message.model_id),
+                file_name:
+                    message.attached_file_name ||
+                    message.attached_file_mime_type ||
+                    "",
+            },
+            getCloudChatPayload(session)
+        );
     };
 
     const parseResponseText = (
@@ -1143,7 +1153,11 @@ const PanelMessage = () => {
         upsertSessionMessages(sessionId, (messages) =>
             messages.map((msg) => (msg.id === messageId ? nextMessage : msg))
         );
-        saveMessageToCloud(sessionId, nextMessage);
+        const { sessions } = getCurrentSession();
+        const session = sessions.find((item) => item.id === sessionId);
+        if (session) {
+            void saveMessageToCloud(session, nextMessage);
+        }
     };
 
     const handleStop = () => {
@@ -1376,12 +1390,6 @@ const PanelMessage = () => {
             };
             workingSessions = [currentSession, ...sessions];
             saveSessions(workingSessions);
-            void saveCloudChat({
-                id: currentSession.id,
-                title: currentSession.title,
-                mode: requestMode,
-                selected_models: selectedModels.map((item) => item.modelId),
-            });
             localStorage.setItem(getCurrentSessionKey(), currentSession.id);
             window.history.replaceState({}, "", `/chat?id=${currentSession.id}`);
         }
@@ -1427,16 +1435,18 @@ const PanelMessage = () => {
         );
 
         saveSessions(nextSessions);
-        void saveCloudChat({
-            id: currentSession.id,
-            title:
-                (currentSession.messages || []).length === 0
-                    ? getSessionTitleFromText(text)
-                    : currentSession.title,
-            mode: requestMode,
-            selected_models: selectedModels.map((item) => item.modelId),
-        });
-        saveMessageToCloud(currentSession.id, userMessage);
+        const savedCurrentSession = nextSessions.find(
+            (item) => item.id === currentSession!.id
+        );
+        if (savedCurrentSession) {
+            await saveCloudChat({
+                id: savedCurrentSession.id,
+                title: savedCurrentSession.title,
+                mode: requestMode,
+                selected_models: selectedModels.map((item) => item.modelId),
+            });
+            await saveMessageToCloud(savedCurrentSession, userMessage);
+        }
         localStorage.setItem(getCurrentSessionKey(), currentSession.id);
 
         setMessage("");
