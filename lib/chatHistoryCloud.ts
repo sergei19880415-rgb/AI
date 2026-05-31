@@ -4,6 +4,8 @@ import { getUserScopedKey } from "@/lib/userStorage";
 const CHAT_HISTORY_WEBHOOK_URL = "https://tgdomen.ru/webhook/chat-history";
 const SAVED_CHAT_IDS_PREFIX = "ai_cloud_saved_chat_ids_";
 const SAVED_CHAT_METADATA_PREFIX = "ai_cloud_saved_chat_metadata_";
+const DELETED_CHAT_IDS_PREFIX = "ai_cloud_deleted_chat_ids_";
+const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 const pendingChatSaves = new Set<string>();
 
 export type CloudChatMessageRole = "user" | "assistant" | "system";
@@ -159,6 +161,79 @@ const writeSavedChatMetadata = (metadata: Map<string, string>) => {
     );
 };
 
+const readDeletedChatIds = () => {
+    if (!isBrowser()) return new Set<string>();
+
+    try {
+        const raw = localStorage.getItem(getUserScopedKey(DELETED_CHAT_IDS_PREFIX));
+        const parsed = raw ? JSON.parse(raw) : [];
+        return new Set(
+            Array.isArray(parsed)
+                ? parsed.map((item) => String(item || "").trim()).filter(Boolean)
+                : []
+        );
+    } catch {
+        return new Set<string>();
+    }
+};
+
+const writeDeletedChatIds = (ids: Set<string>) => {
+    if (!isBrowser()) return;
+    localStorage.setItem(
+        getUserScopedKey(DELETED_CHAT_IDS_PREFIX),
+        JSON.stringify(Array.from(ids))
+    );
+};
+
+const markCloudChatDeletedLocally = (chatId: string) => {
+    const cleanId = String(chatId || "").trim();
+    if (!cleanId) return;
+
+    const deletedIds = readDeletedChatIds();
+    deletedIds.add(cleanId);
+    writeDeletedChatIds(deletedIds);
+
+    const savedIds = readSavedChatIds();
+    savedIds.delete(cleanId);
+    writeSavedChatIds(savedIds);
+
+    const savedMetadata = readSavedChatMetadata();
+    savedMetadata.delete(cleanId);
+    writeSavedChatMetadata(savedMetadata);
+
+    pendingChatSaves.delete(cleanId);
+};
+
+const hasAuthError = (value: unknown): boolean => {
+    if (!isRecord(value)) return false;
+
+    if (value.auth_error === true) return true;
+
+    const nestedData = value.data;
+    if (isRecord(nestedData) && nestedData.auth_error === true) return true;
+
+    const nestedJson = value.json;
+    return isRecord(nestedJson) && nestedJson.auth_error === true;
+};
+
+const handleCloudAuthError = () => {
+    if (!isBrowser()) return;
+
+    localStorage.removeItem("ai_session_token");
+    localStorage.removeItem("ai_session_expires_at");
+
+    try {
+        sessionStorage.setItem(
+            RETURN_AFTER_LOGIN_STORAGE_KEY,
+            `${window.location.pathname}${window.location.search}${window.location.hash}`
+        );
+    } catch {
+        // sessionStorage can be unavailable in restricted browser contexts.
+    }
+
+    window.dispatchEvent(new Event("ai-session-expired"));
+};
+
 const getChatMetadataSignature = (chat: CloudChatPayload) => {
     return JSON.stringify({
         title: String(chat.title || "Новый чат").trim() || "Новый чат",
@@ -265,10 +340,12 @@ const normalizeCloudMessage = (value: unknown): CloudChatMessage | null => {
 };
 
 export const getCloudChats = async () => {
+    const deletedIds = readDeletedChatIds();
     const data = await postChatHistory({ action: "get_chats" });
     return unwrapList(data, "chats")
         .map(normalizeCloudChat)
-        .filter((item): item is CloudChatSession => Boolean(item));
+        .filter((item): item is CloudChatSession => Boolean(item))
+        .filter((item) => !deletedIds.has(item.id));
 };
 
 export const getCloudMessages = async (chatId: string) => {
@@ -287,7 +364,7 @@ export const getCloudMessages = async (chatId: string) => {
 
 export const saveCloudChat = async (chat: CloudChatPayload) => {
     const cleanId = String(chat.id || "").trim();
-    if (!cleanId) return;
+    if (!cleanId || readDeletedChatIds().has(cleanId)) return;
 
     const savedIds = readSavedChatIds();
     const savedMetadata = readSavedChatMetadata();
@@ -317,6 +394,22 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
         savedMetadata.set(cleanId, metadataSignature);
         writeSavedChatIds(savedIds);
         writeSavedChatMetadata(savedMetadata);
+    }
+};
+
+export const deleteCloudChat = async (chatId: string) => {
+    const cleanId = String(chatId || "").trim();
+    if (!cleanId) return;
+
+    markCloudChatDeletedLocally(cleanId);
+
+    const data = await postChatHistory({
+        action: "delete_chat",
+        chat_id: cleanId,
+    });
+
+    if (hasAuthError(data)) {
+        handleCloudAuthError();
     }
 };
 
@@ -384,13 +477,17 @@ export const mergeCloudChatsIntoLocal = <T extends CloudChatSession>(
     localSessions: T[],
     cloudSessions: CloudChatSession[]
 ): T[] => {
+    const deletedIds = readDeletedChatIds();
     const byId = new Map<string, T>();
 
     localSessions.forEach((session) => {
-        byId.set(session.id, session);
+        if (!deletedIds.has(session.id)) {
+            byId.set(session.id, session);
+        }
     });
 
     cloudSessions.forEach((cloudSession) => {
+        if (deletedIds.has(cloudSession.id)) return;
         const existing = byId.get(cloudSession.id);
 
         if (existing) {

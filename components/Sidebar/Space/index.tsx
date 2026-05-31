@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import AnimateHeight from "react-animate-height";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
+import { removeSessionUiSettings } from "@/lib/chatUiSettings";
+import { deleteCloudChat } from "@/lib/chatHistoryCloud";
 import { getUserScopedKey } from "@/lib/userStorage";
 
 type ChatMessage = {
@@ -440,6 +442,8 @@ const Space = () => {
 
         const nextSessions = sessions.filter((item) => item.id !== sessionId);
         saveSessions(nextSessions);
+        removeSessionUiSettings(sessionId);
+        void deleteCloudChat(sessionId);
 
         const currentSessionKey = getUserScopedKey("ai_current_session_");
         const savedCurrentId = localStorage.getItem(currentSessionKey) || "";

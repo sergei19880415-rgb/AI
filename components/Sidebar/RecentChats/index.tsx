@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import TextInputDialog from "@/components/TextInputDialog";
 import { removeSessionUiSettings } from "@/lib/chatUiSettings";
+import { deleteCloudChat } from "@/lib/chatHistoryCloud";
 import { getUserScopedKey } from "@/lib/userStorage";
 
 type ChatMessage = {
@@ -224,6 +225,7 @@ const RecentChats = () => {
         const nextSessions = sessions.filter((item) => item.id !== sessionId);
         saveSessions(sortSessions(nextSessions));
         removeSessionUiSettings(sessionId);
+        void deleteCloudChat(sessionId);
 
         const currentSessionKey = getUserScopedKey("ai_current_session_");
         const savedCurrentId = localStorage.getItem(currentSessionKey) || "";
