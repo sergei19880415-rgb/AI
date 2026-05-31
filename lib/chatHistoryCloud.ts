@@ -432,11 +432,14 @@ export const deleteCloudChat = async (chatId: string) => {
     if (!cleanId) return false;
 
     markCloudChatDeletedLocally(cleanId);
+    console.log("delete_chat request", cleanId);
 
     const data = await postChatHistory({
         action: "delete_chat",
         chat_id: cleanId,
     });
+
+    console.log("delete_chat response", data);
 
     if (hasAuthError(data)) {
         handleCloudAuthError();

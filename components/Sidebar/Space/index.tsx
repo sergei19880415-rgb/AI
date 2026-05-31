@@ -6,8 +6,7 @@ import { useSearchParams } from "next/navigation";
 import AnimateHeight from "react-animate-height";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
-import { removeSessionUiSettings } from "@/lib/chatUiSettings";
-import { deleteCloudChat, syncCloudChatsToLocalStorage } from "@/lib/chatHistoryCloud";
+import { deleteChatEverywhere } from "@/lib/deleteChatEverywhere";
 import { getUserScopedKey } from "@/lib/userStorage";
 
 type ChatMessage = {
@@ -440,26 +439,12 @@ const Space = () => {
         const isConfirmed = window.confirm(`Удалить чат "${current.title}"?`);
         if (!isConfirmed) return;
 
-        const nextSessions = sessions.filter((item) => item.id !== sessionId);
-        saveSessions(nextSessions);
-        removeSessionUiSettings(sessionId);
-        void deleteCloudChat(sessionId).then((deleted) => {
-            if (deleted) {
-                void syncCloudChatsToLocalStorage();
-            }
-        });
+        const result = deleteChatEverywhere(sessionId);
 
-        const currentSessionKey = getUserScopedKey("ai_current_session_");
-        const savedCurrentId = localStorage.getItem(currentSessionKey) || "";
-
-        if (savedCurrentId === sessionId) {
-            if (nextSessions.length > 0) {
-                localStorage.setItem(currentSessionKey, nextSessions[0].id);
-                window.location.href = `/chat?id=${nextSessions[0].id}`;
-            } else {
-                localStorage.removeItem(currentSessionKey);
-                window.location.href = "/chat";
-            }
+        if (result.wasCurrentSession) {
+            window.location.href = result.nextCurrentSessionId
+                ? `/chat?id=${result.nextCurrentSessionId}`
+                : "/chat";
         }
 
         setOpenedMenuId(null);
