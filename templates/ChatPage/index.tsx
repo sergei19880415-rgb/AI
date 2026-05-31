@@ -17,13 +17,10 @@ import {
 } from "@/lib/chatUiSettings";
 import { getUserScopedKey, migrateUserScopedStorage } from "@/lib/userStorage";
 import {
-    getCloudChats,
     getCloudMessages,
     inferSelectedModelsFromMessages,
-    mergeCloudChatsIntoLocal,
     mergeCloudMessagesIntoSession,
     normalizeSelectedModels,
-    saveCloudChat,
 } from "@/lib/cloudChatHistory";
 
 type ChatMessage = {
@@ -136,12 +133,6 @@ const ensureSession = (requestedId?: string | null) => {
         };
 
         saveSessions([newSession]);
-        void saveCloudChat({
-            id: newSession.id,
-            title: newSession.title,
-            mode: getUiMode(),
-            selected_models: getSelectedModelsForCloudSave(),
-        });
         localStorage.setItem(getCurrentSessionKey(), newSession.id);
 
         return newSession;
@@ -251,13 +242,6 @@ const applyChatUiMetadata = (session: Partial<ChatSession>) => {
     });
 };
 
-const getSelectedModelsForCloudSave = () => {
-    const selectedModels = normalizeSelectedModels(readSelectedModels());
-    if (selectedModels.length > 0) return selectedModels;
-
-    const currentModel = (localStorage.getItem(getSelectedModelKey()) || "").trim();
-    return currentModel ? [currentModel] : [];
-};
 
 const ChatPage = () => {
     const router = useRouter();
@@ -270,21 +254,10 @@ const ChatPage = () => {
     const [parallelCount, setParallelCount] = useState(1);
     const [visibleModelIds, setVisibleModelIds] = useState<string[]>([]);
     const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
-    const cloudChatsLoadedRef = useRef(false);
     const loadedCloudMessagesRef = useRef(new Set<string>());
 
     useEffect(() => {
         migrateUserScopedStorage();
-
-        const loadCloudChats = async () => {
-            if (cloudChatsLoadedRef.current) return;
-            cloudChatsLoadedRef.current = true;
-
-            const cloudSessions = await getCloudChats();
-            if (cloudSessions === null) return;
-
-            saveSessions(mergeCloudChatsIntoLocal(readSessions(), cloudSessions));
-        };
 
         const loadCloudMessages = async (sessionId: string) => {
             if (loadedCloudMessagesRef.current.has(sessionId)) return;
@@ -348,7 +321,6 @@ const ChatPage = () => {
         };
 
         const activeSession = loadState();
-        void loadCloudChats();
         void loadCloudMessages(activeSession.id);
 
         window.addEventListener("ai-chat-updated", loadState);

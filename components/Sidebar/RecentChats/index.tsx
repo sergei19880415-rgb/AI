@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import TextInputDialog from "@/components/TextInputDialog";
-import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
 import { deleteChatEverywhere } from "@/lib/deleteChatEverywhere";
 import { getUserScopedKey } from "@/lib/userStorage";
 
@@ -104,26 +103,6 @@ const RecentChats = () => {
     const [projectSessionId, setProjectSessionId] = useState<string | null>(null);
     const [existingProjects, setExistingProjects] = useState<string[]>([]);
     const menuRef = useRef<HTMLDivElement | null>(null);
-    const cloudSyncInProgressRef = useRef(false);
-
-    const refreshCloudSessions = useCallback(async (force = false) => {
-        if (!localStorage.getItem("ai_session_token")) return;
-        if (cloudSyncInProgressRef.current) return;
-
-        cloudSyncInProgressRef.current = true;
-
-        try {
-            const synced = await syncCloudChatsToLocalStorage({
-                force,
-                source: force ? "startup" : "focus",
-            });
-            if (synced) {
-                setSessions(sortSessions(readSessions()));
-            }
-        } finally {
-            cloudSyncInProgressRef.current = false;
-        }
-    }, []);
 
     useEffect(() => {
         const loadSessions = () => {
@@ -131,7 +110,6 @@ const RecentChats = () => {
         };
 
         loadSessions();
-        void refreshCloudSessions(true);
 
         window.addEventListener("ai-chat-sessions-updated", loadSessions);
         window.addEventListener("ai-chat-updated", loadSessions);
@@ -140,34 +118,7 @@ const RecentChats = () => {
             window.removeEventListener("ai-chat-sessions-updated", loadSessions);
             window.removeEventListener("ai-chat-updated", loadSessions);
         };
-    }, [refreshCloudSessions]);
-
-    useEffect(() => {
-        const handleFocus = () => {
-            void refreshCloudSessions(true);
-        };
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                void refreshCloudSessions(true);
-            }
-        };
-
-        const intervalId = window.setInterval(() => {
-            if (document.visibilityState === "visible") {
-                void refreshCloudSessions();
-            }
-        }, 45000);
-
-        window.addEventListener("focus", handleFocus);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-
-        return () => {
-            window.clearInterval(intervalId);
-            window.removeEventListener("focus", handleFocus);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
-        };
-    }, [refreshCloudSessions]);
+    }, []);
 
     useEffect(() => {
         const loadProjects = () => {
