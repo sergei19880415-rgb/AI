@@ -297,6 +297,21 @@ const unwrapList = (value: unknown, key: "chats" | "messages") => {
     return [];
 };
 
+const unwrapRequiredList = (value: unknown, key: "chats" | "messages") => {
+    if (Array.isArray(value)) return value;
+
+    if (isRecord(value)) {
+        const direct = value[key];
+        if (Array.isArray(direct)) return direct;
+
+        const data = value.data;
+        if (Array.isArray(data)) return data;
+        if (isRecord(data) && Array.isArray(data[key])) return data[key];
+    }
+
+    return null;
+};
+
 const normalizeCloudChat = (value: unknown): CloudChatSession | null => {
     if (!isRecord(value)) return null;
 
@@ -354,7 +369,10 @@ export const getCloudChats = async (): Promise<CloudChatSession[] | null> => {
     const data = await postChatHistory({ action: "get_chats" });
     if (data === null) return null;
 
-    return unwrapList(data, "chats")
+    const chatList = unwrapRequiredList(data, "chats");
+    if (chatList === null) return null;
+
+    return chatList
         .map(normalizeCloudChat)
         .filter((item): item is CloudChatSession => Boolean(item))
         .filter((item) => !deletedIds.has(item.id));
