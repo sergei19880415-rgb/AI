@@ -6,7 +6,7 @@ const SAVED_CHAT_IDS_PREFIX = "ai_cloud_saved_chat_ids_";
 const SAVED_CHAT_METADATA_PREFIX = "ai_cloud_saved_chat_metadata_";
 const DELETED_CHAT_IDS_PREFIX = "ai_cloud_deleted_chat_ids_";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
-const pendingChatSaves = new Set<string>();
+const pendingChatSaves = new Map<string, Promise<boolean>>();
 
 export type CloudChatMessageRole = "user" | "assistant" | "system";
 
@@ -392,21 +392,11 @@ export const getCloudMessages = async (chatId: string) => {
         .filter((item): item is CloudChatMessage => Boolean(item));
 };
 
-export const saveCloudChat = async (chat: CloudChatPayload) => {
+const saveCloudChatPayload = async (chat: CloudChatPayload) => {
     const cleanId = String(chat.id || "").trim();
-    if (!cleanId || readDeletedChatIds().has(cleanId)) return;
+    if (!cleanId || readDeletedChatIds().has(cleanId)) return false;
 
-    const savedIds = readSavedChatIds();
-    const savedMetadata = readSavedChatMetadata();
     const metadataSignature = getChatMetadataSignature(chat);
-    if (
-        pendingChatSaves.has(cleanId) ||
-        (savedIds.has(cleanId) && savedMetadata.get(cleanId) === metadataSignature)
-    ) {
-        return;
-    }
-
-    pendingChatSaves.add(cleanId);
     const data = await postChatHistory({
         action: "save_chat",
         chat: {
@@ -417,14 +407,65 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
         },
     });
 
-    pendingChatSaves.delete(cleanId);
+    if (data === null || hasAuthError(data)) return false;
 
-    if (data !== null) {
-        savedIds.add(cleanId);
-        savedMetadata.set(cleanId, metadataSignature);
-        writeSavedChatIds(savedIds);
-        writeSavedChatMetadata(savedMetadata);
+    const savedIds = readSavedChatIds();
+    const savedMetadata = readSavedChatMetadata();
+    savedIds.add(cleanId);
+    savedMetadata.set(cleanId, metadataSignature);
+    writeSavedChatIds(savedIds);
+    writeSavedChatMetadata(savedMetadata);
+    console.log("save_chat success", cleanId);
+
+    return true;
+};
+
+export const ensureCloudChatSaved = async (chat: CloudChatPayload) => {
+    const cleanId = String(chat.id || "").trim();
+    if (!cleanId || readDeletedChatIds().has(cleanId)) return false;
+
+    console.log("ensureCloudChatSaved start", cleanId);
+
+    const savedIds = readSavedChatIds();
+    if (savedIds.has(cleanId)) return true;
+
+    const pendingSave = pendingChatSaves.get(cleanId);
+    if (pendingSave) return pendingSave;
+
+    const savePromise = saveCloudChatPayload(chat).finally(() => {
+        pendingChatSaves.delete(cleanId);
+    });
+
+    pendingChatSaves.set(cleanId, savePromise);
+    return savePromise;
+};
+
+export const saveCloudChat = async (chat: CloudChatPayload) => {
+    const cleanId = String(chat.id || "").trim();
+    if (!cleanId || readDeletedChatIds().has(cleanId)) return false;
+
+    const savedIds = readSavedChatIds();
+    const savedMetadata = readSavedChatMetadata();
+    const metadataSignature = getChatMetadataSignature(chat);
+    if (savedIds.has(cleanId) && savedMetadata.get(cleanId) === metadataSignature) {
+        return true;
     }
+
+    const pendingSave = pendingChatSaves.get(cleanId);
+    if (pendingSave) {
+        const saved = await pendingSave;
+        const latestSavedMetadata = readSavedChatMetadata();
+        if (!saved || latestSavedMetadata.get(cleanId) === metadataSignature) {
+            return saved;
+        }
+    }
+
+    const savePromise = saveCloudChatPayload(chat).finally(() => {
+        pendingChatSaves.delete(cleanId);
+    });
+
+    pendingChatSaves.set(cleanId, savePromise);
+    return savePromise;
 };
 
 export const deleteCloudChat = async (chatId: string) => {
@@ -457,12 +498,25 @@ export const markCloudChatSaved = (chatId: string) => {
     writeSavedChatIds(savedIds);
 };
 
-export const saveCloudMessage = async (message: CloudMessagePayload) => {
+export const saveCloudMessage = async (
+    message: CloudMessagePayload,
+    chat?: CloudChatPayload
+) => {
     const cleanChatId = String(message.chat_id || "").trim();
     const cleanMessageId = String(message.id || "").trim();
-    if (!cleanChatId || !cleanMessageId) return;
+    if (!cleanChatId || !cleanMessageId) return false;
 
-    await postChatHistory({
+    if (chat) {
+        const isChatSaved = await ensureCloudChatSaved({
+            ...chat,
+            id: cleanChatId,
+        });
+        if (!isChatSaved) return false;
+    }
+
+    console.log("save_message after chat saved", message.chat_id);
+
+    const data = await postChatHistory({
         action: "save_message",
         message: {
             id: cleanMessageId,
@@ -474,6 +528,8 @@ export const saveCloudMessage = async (message: CloudMessagePayload) => {
             file_name: String(message.file_name || ""),
         },
     });
+
+    return data !== null && !hasAuthError(data);
 };
 
 const persistCloudChatUiSettings = (chat: CloudChatSession) => {
