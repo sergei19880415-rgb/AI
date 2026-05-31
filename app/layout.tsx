@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Suspense } from "react";
+import CloudChatHistorySync from "@/components/CloudChatHistorySync";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,6 +49,7 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} bg-gray-25 font-geist-sans text-body-md text-gray-800 antialiased max-md:bg-gray-0`}
             >
+                <CloudChatHistorySync />
                 <Suspense fallback={null}>{children}</Suspense>
             </body>
         </html>
