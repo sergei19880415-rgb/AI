@@ -281,7 +281,7 @@ const ChatPage = () => {
             cloudChatsLoadedRef.current = true;
 
             const cloudSessions = await getCloudChats();
-            if (!cloudSessions.length) return;
+            if (cloudSessions === null) return;
 
             saveSessions(mergeCloudChatsIntoLocal(readSessions(), cloudSessions));
         };
