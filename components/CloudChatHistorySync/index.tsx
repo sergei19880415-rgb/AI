@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
 
+const CLOUD_SYNC_INTERVAL_MS = 60000;
+const CLOUD_SYNC_THROTTLE_MS = 30000;
+
 const hasSessionToken = () => {
     return Boolean(localStorage.getItem("ai_session_token"));
 };
@@ -16,7 +19,7 @@ const CloudChatHistorySync = () => {
         if (syncInProgressRef.current) return;
 
         const now = Date.now();
-        if (!force && now - lastSyncStartedAtRef.current < 60000) return;
+        if (!force && now - lastSyncStartedAtRef.current < CLOUD_SYNC_THROTTLE_MS) return;
 
         syncInProgressRef.current = true;
         lastSyncStartedAtRef.current = now;
@@ -44,11 +47,35 @@ const CloudChatHistorySync = () => {
             }
         };
 
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === "ai_session_token" && event.newValue) {
+                void refreshCloudChats(true);
+            }
+        };
+
+        const handleManualRefresh = () => {
+            void refreshCloudChats(true);
+        };
+
+        const intervalId = window.setInterval(() => {
+            if (document.visibilityState === "visible") {
+                void refreshCloudChats(false);
+            }
+        }, CLOUD_SYNC_INTERVAL_MS);
+
         window.addEventListener("focus", handleFocus);
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener("ai-cloud-chat-history-refresh", handleManualRefresh);
         document.addEventListener("visibilitychange", handleVisibilityChange);
 
         return () => {
+            window.clearInterval(intervalId);
             window.removeEventListener("focus", handleFocus);
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener(
+                "ai-cloud-chat-history-refresh",
+                handleManualRefresh
+            );
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
     }, [refreshCloudChats]);
