@@ -8,6 +8,8 @@ const DELETED_CHAT_IDS_PREFIX = "ai_cloud_deleted_chat_ids_";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 const SAVED_MESSAGE_IDS_PREFIX = "ai_cloud_saved_message_ids_";
 const GET_CHATS_FOCUS_THROTTLE_MS = 60000;
+const CLOUD_CHAT_SESSIONS_UPDATED_EVENT = "ai-chat-sessions-updated";
+const CLOUD_CHAT_UPDATED_EVENT = "ai-chat-updated";
 const pendingChatSaves = new Map<string, Promise<boolean>>();
 const pendingMessageSaves = new Map<string, Promise<boolean>>();
 const pendingMessageLoads = new Map<string, Promise<CloudChatMessage[]>>();
@@ -380,6 +382,17 @@ const reconcileSavedChatIdsFromCloud = (cloudSessions: CloudChatSession[]) => {
   Array.from(savedMetadata.keys()).forEach((id) => {
     if (!cloudIds.has(id)) savedMetadata.delete(id);
   });
+  cloudSessions.forEach((session) => {
+    savedMetadata.set(
+      session.id,
+      getChatMetadataSignature({
+        id: session.id,
+        title: session.title,
+        mode: session.mode || "chat",
+        selected_models: session.selected_models,
+      }),
+    );
+  });
   writeSavedChatMetadata(savedMetadata);
 };
 
@@ -551,7 +564,14 @@ export const ensureCloudChatSaved = async (chat: CloudChatPayload) => {
   const cleanId = String(chat.id || "").trim();
   if (!cleanId || readDeletedChatIds().has(cleanId)) return false;
 
-  if (currentSessionSavedChatIds.has(cleanId)) return true;
+  const metadataSignature = getChatMetadataSignature({ ...chat, id: cleanId });
+  const savedMetadata = readSavedChatMetadata();
+  if (
+    currentSessionSavedChatIds.has(cleanId) &&
+    savedMetadata.get(cleanId) === metadataSignature
+  ) {
+    return true;
+  }
 
   const pendingSave = pendingChatSaves.get(cleanId);
   if (pendingSave) return pendingSave;
@@ -568,7 +588,14 @@ export const saveCloudChat = async (chat: CloudChatPayload) => {
   const cleanId = String(chat.id || "").trim();
   if (!cleanId || readDeletedChatIds().has(cleanId)) return false;
 
-  if (currentSessionSavedChatIds.has(cleanId)) return true;
+  const metadataSignature = getChatMetadataSignature({ ...chat, id: cleanId });
+  const savedMetadata = readSavedChatMetadata();
+  if (
+    currentSessionSavedChatIds.has(cleanId) &&
+    savedMetadata.get(cleanId) === metadataSignature
+  ) {
+    return true;
+  }
 
   const pendingSave = pendingChatSaves.get(cleanId);
   if (pendingSave) return pendingSave;
@@ -710,7 +737,7 @@ export const inferSelectedModelsFromMessages = (
   return result;
 };
 
-export const mergeCloudChatsIntoLocal = <T extends CloudChatSession>(
+export const replaceLocalChatsWithCloud = <T extends CloudChatSession>(
   localSessions: T[],
   cloudSessions: CloudChatSession[],
 ): T[] => {
@@ -807,7 +834,7 @@ export const syncCloudChatsToLocalStorage = async (
     localSessions = [];
   }
 
-  const nextSessions = mergeCloudChatsIntoLocal(localSessions, cloudSessions);
+  const nextSessions = replaceLocalChatsWithCloud(localSessions, cloudSessions);
   localStorage.setItem(
     getUserScopedKey("ai_sessions_"),
     JSON.stringify(nextSessions),
@@ -827,8 +854,8 @@ export const syncCloudChatsToLocalStorage = async (
     }
   }
 
-  window.dispatchEvent(new Event("ai-chat-sessions-updated"));
-  window.dispatchEvent(new Event("ai-chat-updated"));
+  window.dispatchEvent(new Event(CLOUD_CHAT_SESSIONS_UPDATED_EVENT));
+  window.dispatchEvent(new Event(CLOUD_CHAT_UPDATED_EVENT));
 
   return true;
 };
