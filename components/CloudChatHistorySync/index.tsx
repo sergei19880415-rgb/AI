@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
 
-const CLOUD_SYNC_INTERVAL_MS = 60000;
-const CLOUD_SYNC_THROTTLE_MS = 30000;
+const CLOUD_SYNC_INTERVAL_MS = 20000;
+const CLOUD_SYNC_THROTTLE_MS = 15000;
 
 const hasSessionToken = () => {
     return Boolean(localStorage.getItem("ai_session_token"));
@@ -14,7 +14,10 @@ const CloudChatHistorySync = () => {
     const syncInProgressRef = useRef(false);
     const lastSyncStartedAtRef = useRef(0);
 
-    const refreshCloudChats = useCallback(async (force = false) => {
+    const refreshCloudChats = useCallback(async (
+        force = false,
+        source: "startup" | "focus" | "poll" = force ? "startup" : "focus"
+    ) => {
         if (!hasSessionToken()) return;
         if (syncInProgressRef.current) return;
 
@@ -27,7 +30,7 @@ const CloudChatHistorySync = () => {
         try {
             await syncCloudChatsToLocalStorage({
                 force,
-                source: force ? "startup" : "focus",
+                source,
             });
         } finally {
             syncInProgressRef.current = false;
@@ -43,7 +46,7 @@ const CloudChatHistorySync = () => {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "visible") {
-                void refreshCloudChats(false);
+                void refreshCloudChats(false, "poll");
             }
         };
 
@@ -59,7 +62,7 @@ const CloudChatHistorySync = () => {
 
         const intervalId = window.setInterval(() => {
             if (document.visibilityState === "visible") {
-                void refreshCloudChats(false);
+                void refreshCloudChats(false, "poll");
             }
         }, CLOUD_SYNC_INTERVAL_MS);
 
