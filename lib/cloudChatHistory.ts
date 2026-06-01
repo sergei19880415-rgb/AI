@@ -7,7 +7,7 @@ const SAVED_CHAT_METADATA_PREFIX = "ai_cloud_saved_chat_metadata_";
 const DELETED_CHAT_IDS_PREFIX = "ai_cloud_deleted_chat_ids_";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 const SAVED_MESSAGE_IDS_PREFIX = "ai_cloud_saved_message_ids_";
-const GET_CHATS_FOCUS_THROTTLE_MS = 60000;
+const GET_CHATS_FOCUS_THROTTLE_MS = 15000;
 const CLOUD_CHAT_SESSIONS_UPDATED_EVENT = "ai-chat-sessions-updated";
 const CLOUD_CHAT_UPDATED_EVENT = "ai-chat-updated";
 const pendingChatSaves = new Map<string, Promise<boolean>>();
@@ -457,7 +457,7 @@ const normalizeCloudMessage = (value: unknown): CloudChatMessage | null => {
 
 type GetCloudChatsOptions = {
   force?: boolean;
-  source?: "startup" | "focus" | "manual";
+  source?: "startup" | "focus" | "poll" | "manual";
 };
 
 const loadCloudChats = async (): Promise<CloudChatSession[] | null> => {
