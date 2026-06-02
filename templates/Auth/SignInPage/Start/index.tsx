@@ -138,13 +138,21 @@ declare global {
                         client_id: string;
                         callback: (response: GoogleCredentialResponse) => void;
                     }) => void;
-                    prompt: (
-                        momentListener?: (notification: {
-                            isNotDisplayed?: () => boolean;
-                            isSkippedMoment?: () => boolean;
-                        }) => void
+                    renderButton: (
+                        parent: HTMLElement,
+                        options: {
+                            theme?: "outline" | "filled_blue" | "filled_black";
+                            size?: "large" | "medium" | "small";
+                            text?:
+                                | "signin_with"
+                                | "signup_with"
+                                | "continue_with"
+                                | "signin";
+                            shape?: "rectangular" | "pill" | "circle" | "square";
+                            width?: string | number;
+                        }
                     ) => void;
-                    cancel: () => void;
+                    cancel?: () => void;
                 };
             };
         };
@@ -179,6 +187,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     const googleCredentialHandlerRef = useRef<
         (response: GoogleCredentialResponse) => void
     >(() => undefined);
+    const googleButtonContainerRef = useRef<HTMLDivElement | null>(null);
+    const isGoogleInitializedRef = useRef(false);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -188,7 +198,6 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
     const [successText, setSuccessText] = useState("");
-    const [googleStatusText, setGoogleStatusText] = useState("");
 
     useEffect(() => {
         const savedRememberEmail = localStorage.getItem("ai_remember_email");
@@ -410,13 +419,11 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             const credential = googleResponse.credential || "";
 
             if (!credential || isLoading || isGoogleLoading) {
-                setGoogleStatusText("");
                 setErrorText("Не удалось войти через Google");
                 return;
             }
 
             setIsGoogleLoading(true);
-            setGoogleStatusText("");
             setErrorText("");
             setSuccessText("");
 
@@ -475,7 +482,12 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     }, [handleGoogleCredential]);
 
     useEffect(() => {
-        if (!isGoogleScriptReady || !window.google) {
+        if (
+            !isGoogleScriptReady ||
+            !window.google ||
+            !googleButtonContainerRef.current ||
+            isGoogleInitializedRef.current
+        ) {
             return;
         }
 
@@ -485,29 +497,18 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 googleCredentialHandlerRef.current(googleResponse);
             },
         });
-    }, [isGoogleScriptReady]);
 
-    const handleGoogleButtonClick = () => {
-        if (isLoading || isGoogleLoading) return;
-
-        if (!isGoogleScriptReady || !window.google) {
-            setErrorText("Не удалось загрузить вход через Google");
-            return;
-        }
-
-        setErrorText("");
-        setSuccessText("");
-        setGoogleStatusText("Выберите Google-аккаунт для входа");
-        window.google.accounts.id.prompt((notification) => {
-            if (
-                notification.isNotDisplayed?.() ||
-                notification.isSkippedMoment?.()
-            ) {
-                setGoogleStatusText("");
-                setErrorText("Не удалось войти через Google");
-            }
+        googleButtonContainerRef.current.innerHTML = "";
+        window.google.accounts.id.renderButton(googleButtonContainerRef.current, {
+            theme: "outline",
+            size: "large",
+            text: "signin_with",
+            shape: "rectangular",
+            width: 400,
         });
-    };
+
+        isGoogleInitializedRef.current = true;
+    }, [isGoogleScriptReady]);
 
     const handleKeyDown = (
         e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -524,6 +525,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 src={GOOGLE_IDENTITY_SCRIPT_SRC}
                 strategy="afterInteractive"
                 onLoad={() => setIsGoogleScriptReady(true)}
+                onReady={() => setIsGoogleScriptReady(true)}
                 onError={() => setErrorText("Не удалось загрузить вход через Google")}
             />
 
@@ -533,27 +535,22 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             />
 
             <div className="mb-3">
-                <Button
-                    className="w-full"
-                    isSecondary
-                    type="button"
-                    onClick={handleGoogleButtonClick}
-                    disabled={!isGoogleScriptReady || isLoading || isGoogleLoading}
-                >
-                    <Image
-                        className="w-5 opacity-100"
-                        src="/images/google.svg"
-                        width={20}
-                        height={20}
-                        alt="Google"
-                    />
-                    Войти через Google
-                </Button>
-                {(googleStatusText || isGoogleLoading) && (
+                <div
+                    className={`flex w-full justify-center ${
+                        isLoading || isGoogleLoading
+                            ? "pointer-events-none opacity-60"
+                            : ""
+                    }`}
+                    ref={googleButtonContainerRef}
+                />
+                {!isGoogleScriptReady && (
                     <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300">
-                        {isGoogleLoading
-                            ? "Выполняем вход через Google..."
-                            : googleStatusText}
+                        Загружаем вход через Google...
+                    </div>
+                )}
+                {isGoogleLoading && (
+                    <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300">
+                        Выполняем вход через Google...
                     </div>
                 )}
             </div>
