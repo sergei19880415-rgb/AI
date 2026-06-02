@@ -15,13 +15,12 @@ import Button from "@/components/Button";
 import Image from "@/components/Image";
 import Field from "@/components/Field";
 import Checkbox from "@/components/Checkbox";
+import { normalizeUserEmail } from "@/lib/userStorage";
 import {
-    getUserScopedKey,
-    migrateUserScopedStorage,
-    normalizeUserEmail,
-    setStoredUserEmail,
-} from "@/lib/userStorage";
-import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
+    clearPostAuthReloadFlag,
+    hardNavigateAfterAuth,
+    saveAuthSessionAndResetChatState,
+} from "@/lib/authSession";
 
 type Props = {
     onRequireEmailVerification: (email: string, message?: string) => void;
@@ -65,26 +64,8 @@ const GOOGLE_CLIENT_ID =
 const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 
-const getSelectedModelKey = (userEmail: string) => {
-    return getUserScopedKey("ai_selected_model_", userEmail);
-};
-
-const getParallelCountKey = (userEmail: string) => {
-    return getUserScopedKey("ai_parallel_count_", userEmail);
-};
-
 const isRecord = (value: unknown): value is Record<string, unknown> => {
     return typeof value === "object" && value !== null && !Array.isArray(value);
-};
-
-const normalizePositiveInt = (value: unknown, fallback: number) => {
-    const num = Number(value);
-    if (!Number.isFinite(num) || num < 1) return fallback;
-    return Math.floor(num);
-};
-
-const getAllowedParallelOptions = (maxParallelModels: number) => {
-    return [1, 2, 4, 6].filter((item) => item <= maxParallelModels);
 };
 
 const toLoginResponse = (value: unknown): LoginResponse | null => {
@@ -150,6 +131,7 @@ declare global {
                                 | "signin";
                             shape?: "rectangular" | "pill" | "circle" | "square";
                             width?: string | number;
+                            logo_alignment?: "left" | "center";
                         }
                     ) => void;
                     cancel?: () => void;
@@ -158,6 +140,16 @@ declare global {
         };
     }
 }
+
+const getSafePostAuthDestination = (value: string) => {
+    const destination = value.trim();
+
+    if (!destination) return "/chat";
+
+    if (destination.startsWith("/chat?")) return "/chat";
+
+    return destination;
+};
 
 const getEmailFromGoogleCredential = (credential: string) => {
     const [, payload] = credential.split(".");
@@ -200,6 +192,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     const [successText, setSuccessText] = useState("");
 
     useEffect(() => {
+        clearPostAuthReloadFlag();
+
         const savedRememberEmail = localStorage.getItem("ai_remember_email");
         if (savedRememberEmail) {
             setEmail(savedRememberEmail);
@@ -225,7 +219,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     }, [router, searchParams]);
 
     const applyLoginState = useCallback(
-        async (
+        (
             data: LoginResponse,
             userEmail: string,
             shouldRememberEmail: boolean
@@ -236,99 +230,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 throw new Error("Login email is missing");
             }
 
-            setStoredUserEmail(cleanEmail);
-            migrateUserScopedStorage(cleanEmail);
-            localStorage.setItem("ai_session_token", data.sessionToken || "");
-            localStorage.setItem(
-                "ai_session_expires_at",
-                data.sessionExpiresAt || ""
-            );
-
-            localStorage.setItem(
-                "ai_user_first_name",
-                (data.firstName || "").trim()
-            );
-
-            localStorage.setItem(
-                "ai_user_name",
-                `${data.firstName || ""} ${data.lastName || ""}`.trim()
-            );
-
-            localStorage.setItem("ai_plan_type", data.planType || "Базовый");
-            localStorage.setItem("ai_allowed_models", data.allowedModels || "");
-
-            const modelsCatalog: ModelCatalogItem[] = Array.isArray(
-                data.modelsCatalog
-            )
-                ? data.modelsCatalog
-                : [];
-
-            localStorage.setItem(
-                "ai_models_catalog",
-                JSON.stringify(modelsCatalog)
-            );
-
-            const currentSelectedModelKey = getSelectedModelKey(cleanEmail);
-            const savedSelectedModel =
-                localStorage.getItem(currentSelectedModelKey) || "";
-
-            const allowedModelIds = modelsCatalog
-                .map((item) => String(item?.model_id || "").trim())
-                .filter(Boolean);
-
-            const defaultModelId =
-                savedSelectedModel && allowedModelIds.includes(savedSelectedModel)
-                    ? savedSelectedModel
-                    : allowedModelIds[0] ||
-                      (data.allowedModels || "")
-                          .split(",")
-                          .map((item: string) => item.trim())
-                          .filter(Boolean)[0] ||
-                      "";
-
-            if (defaultModelId) {
-                localStorage.setItem(currentSelectedModelKey, defaultModelId);
-            } else {
-                localStorage.removeItem(currentSelectedModelKey);
-            }
-
-            const maxParallelModels = normalizePositiveInt(
-                data.maxParallelModels,
-                1
-            );
-
-            localStorage.setItem(
-                "ai_max_parallel_models",
-                String(maxParallelModels)
-            );
-
-            const currentParallelCountKey = getParallelCountKey(cleanEmail);
-            const savedParallelCountRaw =
-                localStorage.getItem(currentParallelCountKey) || "";
-            const savedParallelCount = normalizePositiveInt(
-                savedParallelCountRaw,
-                1
-            );
-
-            const allowedParallelOptions =
-                getAllowedParallelOptions(maxParallelModels);
-
-            const defaultParallelCount = allowedParallelOptions.includes(
-                savedParallelCount
-            )
-                ? savedParallelCount
-                : 1;
-
-            localStorage.setItem(
-                currentParallelCountKey,
-                String(defaultParallelCount)
-            );
-
-            window.dispatchEvent(new Event("ai-models-catalog-updated"));
-            window.dispatchEvent(new Event("ai-selected-model-updated"));
-            window.dispatchEvent(new Event("ai-parallel-settings-updated"));
-
-            await syncCloudChatsToLocalStorage();
+            saveAuthSessionAndResetChatState(data, cleanEmail);
 
             if (shouldRememberEmail) {
                 localStorage.setItem("ai_remember_email", cleanEmail);
@@ -338,16 +240,15 @@ const Start = ({ onRequireEmailVerification }: Props) => {
 
             const returnAfterLogin =
                 sessionStorage.getItem(RETURN_AFTER_LOGIN_STORAGE_KEY) || "";
+            const destination = getSafePostAuthDestination(returnAfterLogin);
 
             if (returnAfterLogin.trim()) {
                 sessionStorage.removeItem(RETURN_AFTER_LOGIN_STORAGE_KEY);
-                router.push(returnAfterLogin);
-                return;
             }
 
-            router.push("/chat");
+            hardNavigateAfterAuth(destination);
         },
-        [router]
+        []
     );
 
     const handleLogin = async () => {
@@ -393,7 +294,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             }
 
             if (data.success) {
-                await applyLoginState(data, cleanEmail, remember);
+                applyLoginState(data, cleanEmail, remember);
                 return;
             }
 
@@ -467,7 +368,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                     return;
                 }
 
-                await applyLoginState(data, googleEmail, remember);
+                applyLoginState(data, googleEmail, remember);
             } catch {
                 setErrorText("Не удалось войти через Google");
             } finally {
@@ -498,13 +399,19 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             },
         });
 
+        const buttonWidth = Math.max(
+            googleButtonContainerRef.current.offsetWidth || 360,
+            320
+        );
+
         googleButtonContainerRef.current.innerHTML = "";
         window.google.accounts.id.renderButton(googleButtonContainerRef.current, {
             theme: "outline",
             size: "large",
             text: "signin_with",
-            shape: "rectangular",
-            width: 400,
+            shape: "pill",
+            logo_alignment: "left",
+            width: buttonWidth,
         });
 
         isGoogleInitializedRef.current = true;
@@ -534,9 +441,9 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 description="Войди, чтобы открыть чат и свои доступные модели."
             />
 
-            <div className="mb-3">
+            <div className="mb-3 rounded-2xl border border-gray-100 bg-white p-2 shadow-xs dark:border-gray-800 dark:bg-gray-900">
                 <div
-                    className={`flex w-full justify-center ${
+                    className={`flex min-h-11 w-full items-center justify-center overflow-hidden rounded-full ${
                         isLoading || isGoogleLoading
                             ? "pointer-events-none opacity-60"
                             : ""
@@ -544,13 +451,18 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                     ref={googleButtonContainerRef}
                 />
                 {!isGoogleScriptReady && (
-                    <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300">
+                    <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300 dark:bg-primary-300/10">
                         Загружаем вход через Google...
                     </div>
                 )}
+                {isGoogleScriptReady && !isGoogleLoading && (
+                    <div className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                        Выберите Google-аккаунт для входа
+                    </div>
+                )}
                 {isGoogleLoading && (
-                    <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300">
-                        Выполняем вход через Google...
+                    <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300 dark:bg-primary-300/10">
+                        Выберите Google-аккаунт для входа
                     </div>
                 )}
             </div>
