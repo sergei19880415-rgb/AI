@@ -138,16 +138,11 @@ declare global {
                         client_id: string;
                         callback: (response: GoogleCredentialResponse) => void;
                     }) => void;
-                    renderButton: (
-                        parent: HTMLElement,
-                        options: {
-                            theme: "outline" | "filled_blue" | "filled_black";
-                            size: "large" | "medium" | "small";
-                            text: "signin_with" | "signup_with" | "continue_with";
-                            shape: "rectangular" | "pill" | "circle" | "square";
-                            width?: number;
-                            logo_alignment?: "left" | "center";
-                        }
+                    prompt: (
+                        momentListener?: (notification: {
+                            isNotDisplayed?: () => boolean;
+                            isSkippedMoment?: () => boolean;
+                        }) => void
                     ) => void;
                     cancel: () => void;
                 };
@@ -181,7 +176,6 @@ const getEmailFromGoogleCredential = (credential: string) => {
 const Start = ({ onRequireEmailVerification }: Props) => {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const googleButtonRef = useRef<HTMLDivElement | null>(null);
     const googleCredentialHandlerRef = useRef<
         (response: GoogleCredentialResponse) => void
     >(() => undefined);
@@ -472,26 +466,37 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     }, [handleGoogleCredential]);
 
     useEffect(() => {
-        if (!isGoogleScriptReady || !googleButtonRef.current || !window.google) {
+        if (!isGoogleScriptReady || !window.google) {
             return;
         }
 
-        googleButtonRef.current.innerHTML = "";
         window.google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
             callback: (googleResponse) => {
                 googleCredentialHandlerRef.current(googleResponse);
             },
         });
-        window.google.accounts.id.renderButton(googleButtonRef.current, {
-            theme: "outline",
-            size: "large",
-            text: "signin_with",
-            shape: "rectangular",
-            width: googleButtonRef.current.offsetWidth || 400,
-            logo_alignment: "left",
-        });
     }, [isGoogleScriptReady]);
+
+    const handleGoogleButtonClick = () => {
+        if (isLoading || isGoogleLoading) return;
+
+        if (!isGoogleScriptReady || !window.google) {
+            setErrorText("Не удалось загрузить вход через Google");
+            return;
+        }
+
+        setErrorText("");
+        setSuccessText("");
+        window.google.accounts.id.prompt((notification) => {
+            if (
+                notification.isNotDisplayed?.() ||
+                notification.isSkippedMoment?.()
+            ) {
+                setErrorText("Не удалось открыть вход через Google");
+            }
+        });
+    };
 
     const handleKeyDown = (
         e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -517,19 +522,22 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             />
 
             <div className="mb-3">
-                <div ref={googleButtonRef} className="flex w-full justify-center" />
-                {!isGoogleScriptReady && (
-                    <Button className="w-full" isSecondary type="button" disabled>
-                        <Image
-                            className="w-5 opacity-100"
-                            src="/images/google.svg"
-                            width={20}
-                            height={20}
-                            alt="Google"
-                        />
-                        Загрузка Google...
-                    </Button>
-                )}
+                <Button
+                    className="w-full"
+                    isSecondary
+                    type="button"
+                    onClick={handleGoogleButtonClick}
+                    disabled={!isGoogleScriptReady || isLoading || isGoogleLoading}
+                >
+                    <Image
+                        className="w-5 opacity-100"
+                        src="/images/google.svg"
+                        width={20}
+                        height={20}
+                        alt="Google"
+                    />
+                    Войти через Google
+                </Button>
                 {isGoogleLoading && (
                     <div className="mt-2 text-center text-sm text-gray-500">
                         Выполняем вход через Google...
