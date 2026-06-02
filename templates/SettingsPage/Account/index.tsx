@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
-import { getStoredUserEmail } from "@/lib/userStorage";
+import {
+    clearCurrentOmniAiUserData,
+    getStoredUserEmail,
+} from "@/lib/userStorage";
 import TextInputDialog from "@/components/TextInputDialog";
 import Modal from "@/components/Modal";
 import TabContainer from "../TabContainer";
@@ -10,6 +14,7 @@ import Line from "../Line";
 
 const UPDATE_NAME_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-name";
 const UPDATE_PASSWORD_WEBHOOK_URL = "https://tgdomen.ru/webhook/update-password";
+const DELETE_ACCOUNT_WEBHOOK_URL = "https://tgdomen.ru/webhook/delete-account";
 
 const hasAuthError = (value: unknown): boolean => {
     if (!value || typeof value !== "object") return false;
@@ -29,6 +34,7 @@ type Props = {
 };
 
 const Account = ({ onOpenPricing }: Props) => {
+    const router = useRouter();
     const [nameDialogOpen, setNameDialogOpen] = useState(false);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
@@ -36,12 +42,14 @@ const Account = ({ onOpenPricing }: Props) => {
     const [userEmail, setUserEmail] = useState("");
     const [isSavingName, setIsSavingName] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     const [passwordError, setPasswordError] = useState("");
     const [passwordSuccess, setPasswordSuccess] = useState("");
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [sessionExpiredModalOpen, setSessionExpiredModalOpen] = useState(false);
+    const [deleteAccountError, setDeleteAccountError] = useState("");
 
     useEffect(() => {
         const savedFirstName = localStorage.getItem("ai_user_first_name");
@@ -67,8 +75,8 @@ const Account = ({ onOpenPricing }: Props) => {
     };
 
     const handleSessionExpired = () => {
-        localStorage.removeItem("ai_session_token");
-        localStorage.removeItem("ai_session_expires_at");
+        const currentEmail = getStoredUserEmail("");
+        clearCurrentOmniAiUserData(currentEmail);
         setSessionExpiredModalOpen(true);
     };
 
@@ -138,6 +146,72 @@ const Account = ({ onOpenPricing }: Props) => {
             alert("Ошибка сети или CORS");
         } finally {
             setIsSavingName(false);
+        }
+    };
+
+
+    const handleDeleteAccount = async () => {
+        const sessionToken = localStorage.getItem("ai_session_token") || "";
+        const currentEmail = getStoredUserEmail("");
+
+        if (!sessionToken) {
+            setDeleteAccountError(
+                "Не удалось удалить профиль. Войдите заново и попробуйте ещё раз."
+            );
+            return;
+        }
+
+        setIsDeletingAccount(true);
+        setDeleteAccountError("");
+
+        try {
+            const response = await fetch(DELETE_ACCOUNT_WEBHOOK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    session_token: sessionToken,
+                }),
+            });
+
+            const raw = await response.text();
+            let parsed: {
+                success?: boolean;
+                message?: string;
+            } | null = null;
+
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                setDeleteAccountError(
+                    "Не удалось удалить профиль. Войдите заново и попробуйте ещё раз."
+                );
+                return;
+            }
+
+            if (hasAuthError(parsed)) {
+                clearCurrentOmniAiUserData(currentEmail);
+                router.push("/auth/sign-in");
+                return;
+            }
+
+            if (!response.ok || !parsed?.success) {
+                setDeleteAccountError(
+                    "Не удалось удалить профиль. Войдите заново и попробуйте ещё раз."
+                );
+                return;
+            }
+
+            clearCurrentOmniAiUserData(currentEmail);
+            setDeactivateDialogOpen(false);
+            router.push("/auth/sign-in?deleted=1");
+        } catch {
+            setDeleteAccountError(
+                "Не удалось удалить профиль. Войдите заново и попробуйте ещё раз."
+            );
+        } finally {
+            setIsDeletingAccount(false);
         }
     };
 
@@ -284,16 +358,19 @@ const Account = ({ onOpenPricing }: Props) => {
                 </Line>
 
                 <Line
-                    title="Деактивировать аккаунт"
-                    description="Временно ограничить доступ к аккаунту. На текущем этапе это интерфейс подтверждения без отправки на сервер."
+                    title="Удаление аккаунта"
+                    description="Профиль, чаты и сообщения будут удалены без восстановления."
                 >
                     <Button
                         className="!text-[1rem] !shadow-[inset_0_0_0_0.0625rem_#D73E3D] !text-error-100 hover:!bg-error-100 hover:!text-gray-0"
                         isSecondary
                         isSmall
-                        onClick={() => setDeactivateDialogOpen(true)}
+                        onClick={() => {
+                            setDeleteAccountError("");
+                            setDeactivateDialogOpen(true);
+                        }}
                     >
-                        Деактивировать аккаунт
+                        Удалить аккаунт
                     </Button>
                 </Line>
             </TabContainer>
@@ -395,29 +472,36 @@ const Account = ({ onOpenPricing }: Props) => {
             >
                 <div className="pr-10">
                     <div className="text-[20px] font-semibold leading-7 text-gray-900">
-                        Деактивация аккаунта
+                        Удаление аккаунта
                     </div>
                     <div className="mt-2 text-[13px] leading-5 text-gray-500">
-                        Вы уверены, что хотите деактивировать аккаунт? Сейчас это
-                        только UI-подтверждение: действие не отправляется на
-                        сервер.
+                        Профиль будет удалён. Чаты и сообщения будут удалены без
+                        восстановления.
                     </div>
                 </div>
+
+                {deleteAccountError && (
+                    <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] leading-5 text-red-600">
+                        {deleteAccountError}
+                    </div>
+                )}
 
                 <div className="mt-6 flex items-center justify-end gap-3">
                     <button
                         type="button"
                         onClick={() => setDeactivateDialogOpen(false)}
                         className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 bg-white px-5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        disabled={isDeletingAccount}
                     >
                         Отмена
                     </button>
                     <button
                         type="button"
-                        onClick={() => setDeactivateDialogOpen(false)}
-                        className="inline-flex h-11 items-center justify-center rounded-xl bg-error-100 px-5 text-[14px] font-medium text-white transition-colors hover:opacity-90"
+                        onClick={() => void handleDeleteAccount()}
+                        className="inline-flex h-11 items-center justify-center rounded-xl bg-error-100 px-5 text-[14px] font-medium text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isDeletingAccount}
                     >
-                        Подтвердить
+                        {isDeletingAccount ? "Удаление..." : "Удалить профиль"}
                     </button>
                 </div>
             </Modal>

@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "@/components/Image";
 import Icon from "@/components/Icon";
-import { getStoredUserEmail } from "@/lib/userStorage";
+import {
+    clearCurrentOmniAiUserData,
+    getStoredUserEmail,
+} from "@/lib/userStorage";
 
 type Props = {
     isCollapsed: boolean;
@@ -71,14 +74,7 @@ const User = ({ isCollapsed }: Props) => {
     }, []);
 
     const handleLogout = () => {
-        localStorage.removeItem("ai_user_email");
-        localStorage.removeItem("ai_user_first_name");
-        localStorage.removeItem("ai_user_name");
-        localStorage.removeItem("ai_plan_type");
-        localStorage.removeItem("ai_allowed_models");
-        localStorage.removeItem("ai_models_catalog");
-        localStorage.removeItem("ai_max_parallel_models");
-
+        clearCurrentOmniAiUserData(getStoredUserEmail(""));
         router.push("/auth/sign-in");
     };
 
