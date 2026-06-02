@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState, type KeyboardEvent } from "react";
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type KeyboardEvent,
+} from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
 import Head from "@/components/Login/Head";
 import Button from "@/components/Button";
@@ -31,9 +38,15 @@ type ModelCatalogItem = {
     is_active?: boolean;
 };
 
+type GoogleCredentialResponse = {
+    credential?: string;
+    select_by?: string;
+};
+
 type LoginResponse = {
     success?: boolean;
     emailVerificationRequired?: boolean;
+    email?: string;
     firstName?: string;
     lastName?: string;
     planType?: string;
@@ -46,6 +59,10 @@ type LoginResponse = {
 };
 
 const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
+const GOOGLE_AUTH_WEBHOOK_URL = "https://tgdomen.ru/webhook/google-auth";
+const GOOGLE_CLIENT_ID =
+    "760225057684-bbmmn7vsri3ofgu9pbakj84aqvjtv04b.apps.googleusercontent.com";
+const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 
 const getSelectedModelKey = (userEmail: string) => {
@@ -80,6 +97,7 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
             typeof value.emailVerificationRequired === "boolean"
                 ? value.emailVerificationRequired
                 : undefined,
+        email: typeof value.email === "string" ? value.email : undefined,
         firstName:
             typeof value.firstName === "string" ? value.firstName : undefined,
         lastName:
@@ -111,15 +129,70 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
     };
 };
 
+declare global {
+    interface Window {
+        google?: {
+            accounts: {
+                id: {
+                    initialize: (config: {
+                        client_id: string;
+                        callback: (response: GoogleCredentialResponse) => void;
+                    }) => void;
+                    renderButton: (
+                        parent: HTMLElement,
+                        options: {
+                            theme: "outline" | "filled_blue" | "filled_black";
+                            size: "large" | "medium" | "small";
+                            text: "signin_with" | "signup_with" | "continue_with";
+                            shape: "rectangular" | "pill" | "circle" | "square";
+                            width?: number;
+                            logo_alignment?: "left" | "center";
+                        }
+                    ) => void;
+                    cancel: () => void;
+                };
+            };
+        };
+    }
+}
+
+const getEmailFromGoogleCredential = (credential: string) => {
+    const [, payload] = credential.split(".");
+    if (!payload) return "";
+
+    try {
+        const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+        const decodedPayload = atob(
+            normalizedPayload.padEnd(
+                normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+                "="
+            )
+        );
+        const parsed = JSON.parse(decodedPayload) as unknown;
+
+        if (!isRecord(parsed) || typeof parsed.email !== "string") return "";
+
+        return normalizeUserEmail(parsed.email, "");
+    } catch {
+        return "";
+    }
+};
+
 const Start = ({ onRequireEmailVerification }: Props) => {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const googleButtonRef = useRef<HTMLDivElement | null>(null);
+    const googleCredentialHandlerRef = useRef<
+        (response: GoogleCredentialResponse) => void
+    >(() => undefined);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(false);
     const [errorText, setErrorText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
     const [successText, setSuccessText] = useState("");
 
     useEffect(() => {
@@ -141,11 +214,137 @@ const Start = ({ onRequireEmailVerification }: Props) => {
         }
     }, [router, searchParams]);
 
+    const applyLoginState = useCallback(
+        async (
+            data: LoginResponse,
+            userEmail: string,
+            shouldRememberEmail: boolean
+        ) => {
+            const cleanEmail = normalizeUserEmail(userEmail, "");
+
+            if (!cleanEmail) {
+                throw new Error("Login email is missing");
+            }
+
+            setStoredUserEmail(cleanEmail);
+            migrateUserScopedStorage(cleanEmail);
+            localStorage.setItem("ai_session_token", data.sessionToken || "");
+            localStorage.setItem(
+                "ai_session_expires_at",
+                data.sessionExpiresAt || ""
+            );
+
+            localStorage.setItem(
+                "ai_user_first_name",
+                (data.firstName || "").trim()
+            );
+
+            localStorage.setItem(
+                "ai_user_name",
+                `${data.firstName || ""} ${data.lastName || ""}`.trim()
+            );
+
+            localStorage.setItem("ai_plan_type", data.planType || "Базовый");
+            localStorage.setItem("ai_allowed_models", data.allowedModels || "");
+
+            const modelsCatalog: ModelCatalogItem[] = Array.isArray(
+                data.modelsCatalog
+            )
+                ? data.modelsCatalog
+                : [];
+
+            localStorage.setItem(
+                "ai_models_catalog",
+                JSON.stringify(modelsCatalog)
+            );
+
+            const currentSelectedModelKey = getSelectedModelKey(cleanEmail);
+            const savedSelectedModel =
+                localStorage.getItem(currentSelectedModelKey) || "";
+
+            const allowedModelIds = modelsCatalog
+                .map((item) => String(item?.model_id || "").trim())
+                .filter(Boolean);
+
+            const defaultModelId =
+                savedSelectedModel && allowedModelIds.includes(savedSelectedModel)
+                    ? savedSelectedModel
+                    : allowedModelIds[0] ||
+                      (data.allowedModels || "")
+                          .split(",")
+                          .map((item: string) => item.trim())
+                          .filter(Boolean)[0] ||
+                      "";
+
+            if (defaultModelId) {
+                localStorage.setItem(currentSelectedModelKey, defaultModelId);
+            } else {
+                localStorage.removeItem(currentSelectedModelKey);
+            }
+
+            const maxParallelModels = normalizePositiveInt(
+                data.maxParallelModels,
+                1
+            );
+
+            localStorage.setItem(
+                "ai_max_parallel_models",
+                String(maxParallelModels)
+            );
+
+            const currentParallelCountKey = getParallelCountKey(cleanEmail);
+            const savedParallelCountRaw =
+                localStorage.getItem(currentParallelCountKey) || "";
+            const savedParallelCount = normalizePositiveInt(
+                savedParallelCountRaw,
+                1
+            );
+
+            const allowedParallelOptions =
+                getAllowedParallelOptions(maxParallelModels);
+
+            const defaultParallelCount = allowedParallelOptions.includes(
+                savedParallelCount
+            )
+                ? savedParallelCount
+                : 1;
+
+            localStorage.setItem(
+                currentParallelCountKey,
+                String(defaultParallelCount)
+            );
+
+            window.dispatchEvent(new Event("ai-models-catalog-updated"));
+            window.dispatchEvent(new Event("ai-selected-model-updated"));
+            window.dispatchEvent(new Event("ai-parallel-settings-updated"));
+
+            await syncCloudChatsToLocalStorage();
+
+            if (shouldRememberEmail) {
+                localStorage.setItem("ai_remember_email", cleanEmail);
+            } else {
+                localStorage.removeItem("ai_remember_email");
+            }
+
+            const returnAfterLogin =
+                sessionStorage.getItem(RETURN_AFTER_LOGIN_STORAGE_KEY) || "";
+
+            if (returnAfterLogin.trim()) {
+                sessionStorage.removeItem(RETURN_AFTER_LOGIN_STORAGE_KEY);
+                router.push(returnAfterLogin);
+                return;
+            }
+
+            router.push("/chat");
+        },
+        [router]
+    );
+
     const handleLogin = async () => {
         const cleanEmail = normalizeUserEmail(email, "");
         const cleanPassword = password.trim();
 
-        if (!cleanEmail || !cleanPassword || isLoading) return;
+        if (!cleanEmail || !cleanPassword || isLoading || isGoogleLoading) return;
 
         setIsLoading(true);
         setErrorText("");
@@ -184,130 +383,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             }
 
             if (data.success) {
-                setStoredUserEmail(cleanEmail);
-                migrateUserScopedStorage(cleanEmail);
-                localStorage.setItem(
-                    "ai_session_token",
-                    data.sessionToken || ""
-                );
-                localStorage.setItem(
-                    "ai_session_expires_at",
-                    data.sessionExpiresAt || ""
-                );
-
-                localStorage.setItem(
-                    "ai_user_first_name",
-                    (data.firstName || "").trim()
-                );
-
-                localStorage.setItem(
-                    "ai_user_name",
-                    `${data.firstName || ""} ${data.lastName || ""}`.trim()
-                );
-
-                localStorage.setItem(
-                    "ai_plan_type",
-                    data.planType || "Базовый"
-                );
-
-                localStorage.setItem(
-                    "ai_allowed_models",
-                    data.allowedModels || ""
-                );
-
-                const modelsCatalog: ModelCatalogItem[] = Array.isArray(
-                    data.modelsCatalog
-                )
-                    ? data.modelsCatalog
-                    : [];
-
-                localStorage.setItem(
-                    "ai_models_catalog",
-                    JSON.stringify(modelsCatalog)
-                );
-
-                const currentSelectedModelKey = getSelectedModelKey(cleanEmail);
-                const savedSelectedModel =
-                    localStorage.getItem(currentSelectedModelKey) || "";
-
-                const allowedModelIds = modelsCatalog
-                    .map((item) => String(item?.model_id || "").trim())
-                    .filter(Boolean);
-
-                const defaultModelId =
-                    savedSelectedModel &&
-                    allowedModelIds.includes(savedSelectedModel)
-                        ? savedSelectedModel
-                        : allowedModelIds[0] ||
-                          (data.allowedModels || "")
-                              .split(",")
-                              .map((item: string) => item.trim())
-                              .filter(Boolean)[0] ||
-                          "";
-
-                if (defaultModelId) {
-                    localStorage.setItem(
-                        currentSelectedModelKey,
-                        defaultModelId
-                    );
-                } else {
-                    localStorage.removeItem(currentSelectedModelKey);
-                }
-
-                const maxParallelModels = normalizePositiveInt(
-                    data.maxParallelModels,
-                    1
-                );
-
-                localStorage.setItem(
-                    "ai_max_parallel_models",
-                    String(maxParallelModels)
-                );
-
-                const currentParallelCountKey = getParallelCountKey(cleanEmail);
-                const savedParallelCountRaw =
-                    localStorage.getItem(currentParallelCountKey) || "";
-                const savedParallelCount = normalizePositiveInt(
-                    savedParallelCountRaw,
-                    1
-                );
-
-                const allowedParallelOptions =
-                    getAllowedParallelOptions(maxParallelModels);
-
-                const defaultParallelCount = allowedParallelOptions.includes(
-                    savedParallelCount
-                )
-                    ? savedParallelCount
-                    : 1;
-
-                localStorage.setItem(
-                    currentParallelCountKey,
-                    String(defaultParallelCount)
-                );
-
-                window.dispatchEvent(new Event("ai-models-catalog-updated"));
-                window.dispatchEvent(new Event("ai-selected-model-updated"));
-                window.dispatchEvent(new Event("ai-parallel-settings-updated"));
-
-                await syncCloudChatsToLocalStorage();
-
-                if (remember) {
-                    localStorage.setItem("ai_remember_email", cleanEmail);
-                } else {
-                    localStorage.removeItem("ai_remember_email");
-                }
-
-                const returnAfterLogin =
-                    sessionStorage.getItem(RETURN_AFTER_LOGIN_STORAGE_KEY) || "";
-
-                if (returnAfterLogin.trim()) {
-                    sessionStorage.removeItem(RETURN_AFTER_LOGIN_STORAGE_KEY);
-                    router.push(returnAfterLogin);
-                    return;
-                }
-
-                router.push("/chat");
+                await applyLoginState(data, cleanEmail, remember);
                 return;
             }
 
@@ -328,6 +404,95 @@ const Start = ({ onRequireEmailVerification }: Props) => {
         }
     };
 
+    const handleGoogleCredential = useCallback(
+        async (googleResponse: GoogleCredentialResponse) => {
+            const credential = googleResponse.credential || "";
+
+            if (!credential || isLoading || isGoogleLoading) {
+                setErrorText("Не удалось войти через Google");
+                return;
+            }
+
+            setIsGoogleLoading(true);
+            setErrorText("");
+            setSuccessText("");
+
+            try {
+                const response = await fetch(GOOGLE_AUTH_WEBHOOK_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        credential,
+                    }),
+                });
+
+                const raw = await response.text();
+
+                let parsed: unknown = null;
+
+                try {
+                    parsed = JSON.parse(raw);
+                } catch {
+                    setErrorText("Не удалось войти через Google");
+                    setIsGoogleLoading(false);
+                    return;
+                }
+
+                const data = toLoginResponse(parsed);
+
+                if (!response.ok || !data?.success) {
+                    setErrorText("Не удалось войти через Google");
+                    return;
+                }
+
+                const googleEmail = normalizeUserEmail(
+                    data.email || getEmailFromGoogleCredential(credential),
+                    ""
+                );
+
+                if (!googleEmail) {
+                    setErrorText("Не удалось войти через Google");
+                    return;
+                }
+
+                await applyLoginState(data, googleEmail, remember);
+            } catch {
+                setErrorText("Не удалось войти через Google");
+            } finally {
+                setIsGoogleLoading(false);
+            }
+        },
+        [applyLoginState, isGoogleLoading, isLoading, remember]
+    );
+
+    useEffect(() => {
+        googleCredentialHandlerRef.current = handleGoogleCredential;
+    }, [handleGoogleCredential]);
+
+    useEffect(() => {
+        if (!isGoogleScriptReady || !googleButtonRef.current || !window.google) {
+            return;
+        }
+
+        googleButtonRef.current.innerHTML = "";
+        window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: (googleResponse) => {
+                googleCredentialHandlerRef.current(googleResponse);
+            },
+        });
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+            theme: "outline",
+            size: "large",
+            text: "signin_with",
+            shape: "rectangular",
+            width: googleButtonRef.current.offsetWidth || 400,
+            logo_alignment: "left",
+        });
+    }, [isGoogleScriptReady]);
+
     const handleKeyDown = (
         e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
@@ -339,21 +504,38 @@ const Start = ({ onRequireEmailVerification }: Props) => {
 
     return (
         <>
+            <Script
+                src={GOOGLE_IDENTITY_SCRIPT_SRC}
+                strategy="afterInteractive"
+                onLoad={() => setIsGoogleScriptReady(true)}
+                onError={() => setErrorText("Не удалось загрузить вход через Google")}
+            />
+
             <Head
                 title="Вход в AI-агрегатор"
                 description="Войди, чтобы открыть чат и свои доступные модели."
             />
 
-            <Button className="w-full mb-3" isSecondary type="button">
-                <Image
-                    className="w-5 opacity-100"
-                    src="/images/google.svg"
-                    width={20}
-                    height={20}
-                    alt="Google"
-                />
-                Войти через Google
-            </Button>
+            <div className="mb-3">
+                <div ref={googleButtonRef} className="flex w-full justify-center" />
+                {!isGoogleScriptReady && (
+                    <Button className="w-full" isSecondary type="button" disabled>
+                        <Image
+                            className="w-5 opacity-100"
+                            src="/images/google.svg"
+                            width={20}
+                            height={20}
+                            alt="Google"
+                        />
+                        Загрузка Google...
+                    </Button>
+                )}
+                {isGoogleLoading && (
+                    <div className="mt-2 text-center text-sm text-gray-500">
+                        Выполняем вход через Google...
+                    </div>
+                )}
+            </div>
 
             <Button className="w-full" isSecondary type="button">
                 <Image
@@ -418,7 +600,12 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 isPrimary
                 type="button"
                 onClick={handleLogin}
-                disabled={isLoading || !email.trim() || !password.trim()}
+                disabled={
+                    isLoading ||
+                    isGoogleLoading ||
+                    !email.trim() ||
+                    !password.trim()
+                }
             >
                 {isLoading ? "Проверка..." : "Войти"}
             </Button>
@@ -435,5 +622,4 @@ const Start = ({ onRequireEmailVerification }: Props) => {
         </>
     );
 };
-
 export default Start;
