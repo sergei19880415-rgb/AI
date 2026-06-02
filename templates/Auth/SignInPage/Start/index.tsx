@@ -188,6 +188,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
     const [successText, setSuccessText] = useState("");
+    const [googleStatusText, setGoogleStatusText] = useState("");
 
     useEffect(() => {
         const savedRememberEmail = localStorage.getItem("ai_remember_email");
@@ -204,6 +205,12 @@ const Start = ({ onRequireEmailVerification }: Props) => {
 
         if (searchParams.get("reset") === "1") {
             setSuccessText("Пароль обновлён. Теперь можно войти.");
+            router.replace("/auth/sign-in");
+            return;
+        }
+
+        if (searchParams.get("deleted") === "1") {
+            setSuccessText("Профиль удалён");
             router.replace("/auth/sign-in");
         }
     }, [router, searchParams]);
@@ -403,11 +410,13 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             const credential = googleResponse.credential || "";
 
             if (!credential || isLoading || isGoogleLoading) {
+                setGoogleStatusText("");
                 setErrorText("Не удалось войти через Google");
                 return;
             }
 
             setIsGoogleLoading(true);
+            setGoogleStatusText("");
             setErrorText("");
             setSuccessText("");
 
@@ -488,12 +497,14 @@ const Start = ({ onRequireEmailVerification }: Props) => {
 
         setErrorText("");
         setSuccessText("");
+        setGoogleStatusText("Выберите Google-аккаунт для входа");
         window.google.accounts.id.prompt((notification) => {
             if (
                 notification.isNotDisplayed?.() ||
                 notification.isSkippedMoment?.()
             ) {
-                setErrorText("Не удалось открыть вход через Google");
+                setGoogleStatusText("");
+                setErrorText("Не удалось войти через Google");
             }
         });
     };
@@ -538,9 +549,11 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                     />
                     Войти через Google
                 </Button>
-                {isGoogleLoading && (
-                    <div className="mt-2 text-center text-sm text-gray-500">
-                        Выполняем вход через Google...
+                {(googleStatusText || isGoogleLoading) && (
+                    <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300">
+                        {isGoogleLoading
+                            ? "Выполняем вход через Google..."
+                            : googleStatusText}
                     </div>
                 )}
             </div>

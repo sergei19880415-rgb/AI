@@ -13,6 +13,31 @@ const USER_SCOPED_PREFIXES = [
     "ai_chat_ui_settings_",
 ] as const;
 
+const PROJECT_SCOPED_PREFIXES = [
+    ...USER_SCOPED_PREFIXES,
+    "ai_cloud_saved_chat_ids_",
+    "ai_cloud_saved_chat_metadata_",
+    "ai_cloud_deleted_chat_ids_",
+    "ai_cloud_saved_message_ids_",
+] as const;
+
+const PROJECT_SESSION_KEYS = [
+    USER_EMAIL_STORAGE_KEY,
+    "ai_session_token",
+    "ai_session_expires_at",
+    "ai_user_first_name",
+    "ai_user_name",
+    "ai_plan_type",
+    "ai_allowed_models",
+    "ai_models_catalog",
+    "ai_max_parallel_models",
+    "ai_chat_draft_message",
+    "ai_return_after_login",
+    "ai_remember_email",
+] as const;
+
+const PROJECT_SESSION_STORAGE_KEYS = ["ai_return_after_login"] as const;
+
 type UserScopedPrefix = (typeof USER_SCOPED_PREFIXES)[number];
 
 const isBrowser = () => typeof window !== "undefined";
@@ -235,4 +260,44 @@ export const migrateUserScopedStorage = (email?: string | null) => {
             localStorage.removeItem(sourceKey);
         });
     });
+};
+
+
+export const clearCurrentOmniAiUserData = (email?: string | null) => {
+    if (!isBrowser()) return;
+
+    const normalizedEmail = email === undefined
+        ? getStoredUserEmail("")
+        : normalizeUserEmail(email, "");
+
+    const keysToRemove = new Set<string>(PROJECT_SESSION_KEYS);
+
+    if (normalizedEmail) {
+        PROJECT_SCOPED_PREFIXES.forEach((prefix) => {
+            const targetKey = getUserScopedKey(prefix, normalizedEmail);
+            keysToRemove.add(targetKey);
+
+            for (let index = 0; index < localStorage.length; index += 1) {
+                const key = localStorage.key(index);
+                if (!key?.startsWith(prefix)) continue;
+
+                const rawEmail = key.slice(prefix.length);
+                if (normalizeUserEmail(rawEmail, "") === normalizedEmail) {
+                    keysToRemove.add(key);
+                }
+            }
+        });
+    }
+
+    keysToRemove.forEach((key) => {
+        localStorage.removeItem(key);
+    });
+
+    PROJECT_SESSION_STORAGE_KEYS.forEach((key) => {
+        sessionStorage.removeItem(key);
+    });
+
+    window.dispatchEvent(new Event("ai-user-profile-updated"));
+    window.dispatchEvent(new Event("ai-chat-sessions-updated"));
+    window.dispatchEvent(new Event("ai-chat-updated"));
 };
