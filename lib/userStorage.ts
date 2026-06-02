@@ -36,6 +36,22 @@ const PROJECT_SESSION_KEYS = [
     "ai_remember_email",
 ] as const;
 
+const CHAT_STATE_PREFIXES = [
+    "ai_sessions_",
+    "ai_current_session_",
+    "ai_projects_",
+    "ai_projects_meta_",
+    "ai_chat_ui_settings_",
+    "ai_cloud_saved_chat_ids_",
+    "ai_cloud_saved_chat_metadata_",
+    "ai_cloud_deleted_chat_ids_",
+    "ai_cloud_saved_message_ids_",
+] as const;
+
+const CHAT_STATE_LOCAL_STORAGE_KEYS = ["ai_chat_draft_message"] as const;
+
+const CHAT_STATE_SESSION_STORAGE_KEYS = ["ai_chat_draft_message"] as const;
+
 const PROJECT_SESSION_STORAGE_KEYS = ["ai_return_after_login"] as const;
 
 type UserScopedPrefix = (typeof USER_SCOPED_PREFIXES)[number];
@@ -262,6 +278,43 @@ export const migrateUserScopedStorage = (email?: string | null) => {
     });
 };
 
+export const clearCurrentOmniAiChatState = (email?: string | null) => {
+    if (!isBrowser()) return;
+
+    const normalizedEmail = email === undefined
+        ? getStoredUserEmail("")
+        : normalizeUserEmail(email, "");
+
+    const keysToRemove = new Set<string>(CHAT_STATE_LOCAL_STORAGE_KEYS);
+
+    if (normalizedEmail) {
+        CHAT_STATE_PREFIXES.forEach((prefix) => {
+            const targetKey = getUserScopedKey(prefix, normalizedEmail);
+            keysToRemove.add(targetKey);
+
+            for (let index = 0; index < localStorage.length; index += 1) {
+                const key = localStorage.key(index);
+                if (!key?.startsWith(prefix)) continue;
+
+                const rawEmail = key.slice(prefix.length);
+                if (normalizeUserEmail(rawEmail, "") === normalizedEmail) {
+                    keysToRemove.add(key);
+                }
+            }
+        });
+    }
+
+    keysToRemove.forEach((key) => {
+        localStorage.removeItem(key);
+    });
+
+    CHAT_STATE_SESSION_STORAGE_KEYS.forEach((key) => {
+        sessionStorage.removeItem(key);
+    });
+
+    window.dispatchEvent(new Event("ai-chat-sessions-updated"));
+    window.dispatchEvent(new Event("ai-chat-updated"));
+};
 
 export const clearCurrentOmniAiUserData = (email?: string | null) => {
     if (!isBrowser()) return;

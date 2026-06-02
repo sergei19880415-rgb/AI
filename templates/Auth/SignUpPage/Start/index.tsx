@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Head from "@/components/Login/Head";
@@ -8,13 +8,12 @@ import Button from "@/components/Button";
 import Field from "@/components/Field";
 import Checkbox from "@/components/Checkbox";
 import EmailVerificationForm from "@/components/Login/EmailVerificationForm";
+import { normalizeUserEmail } from "@/lib/userStorage";
 import {
-    getUserScopedKey,
-    migrateUserScopedStorage,
-    normalizeUserEmail,
-    setStoredUserEmail,
-} from "@/lib/userStorage";
-import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
+    clearPostAuthReloadFlag,
+    hardNavigateAfterAuth,
+    saveAuthSessionAndResetChatState,
+} from "@/lib/authSession";
 
 type ModelCatalogItem = {
     model_id: string;
@@ -55,26 +54,8 @@ const REGISTER_WEBHOOK_URL = "https://tgdomen.ru/webhook/register-auth";
 const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
 const VERIFY_EMAIL_WEBHOOK_URL = "https://tgdomen.ru/webhook/verify-email";
 
-const getSelectedModelKey = (userEmail: string) => {
-    return getUserScopedKey("ai_selected_model_", userEmail);
-};
-
-const getParallelCountKey = (userEmail: string) => {
-    return getUserScopedKey("ai_parallel_count_", userEmail);
-};
-
 const isRecord = (value: unknown): value is Record<string, unknown> => {
     return typeof value === "object" && value !== null && !Array.isArray(value);
-};
-
-const normalizePositiveInt = (value: unknown, fallback: number) => {
-    const num = Number(value);
-    if (!Number.isFinite(num) || num < 1) return fallback;
-    return Math.floor(num);
-};
-
-const getAllowedParallelOptions = (maxParallelModels: number) => {
-    return [1, 2, 4, 6].filter((item) => item <= maxParallelModels);
 };
 
 const toLoginResponse = (value: unknown): LoginResponse | null => {
@@ -140,105 +121,16 @@ const toVerifyEmailResponse = (value: unknown): VerifyEmailResponse | null => {
     };
 };
 
-const applyLoginState = async (data: LoginResponse, cleanEmail: string) => {
-    const resolvedFirstName = (data.firstName || "").trim();
-    const resolvedLastName = (data.lastName || "").trim();
-    const resolvedFullName = `${resolvedFirstName} ${resolvedLastName}`.trim();
-
-    setStoredUserEmail(cleanEmail);
-    migrateUserScopedStorage(cleanEmail);
-    localStorage.setItem("ai_session_token", data.sessionToken || "");
-    localStorage.setItem(
-        "ai_session_expires_at",
-        data.sessionExpiresAt || ""
-    );
-    localStorage.setItem("ai_user_first_name", resolvedFirstName);
-    localStorage.setItem("ai_user_name", resolvedFullName);
-
-    localStorage.setItem(
-        "ai_plan_type",
-        data.planType || "Базовый"
-    );
-
-    localStorage.setItem(
-        "ai_allowed_models",
-        data.allowedModels || ""
-    );
-
-    await syncCloudChatsToLocalStorage();
-
-    const modelsCatalog: ModelCatalogItem[] = Array.isArray(data.modelsCatalog)
-        ? data.modelsCatalog
-        : [];
-
-    localStorage.setItem(
-        "ai_models_catalog",
-        JSON.stringify(modelsCatalog)
-    );
-
-    const currentSelectedModelKey = getSelectedModelKey(cleanEmail);
-    const savedSelectedModel =
-        localStorage.getItem(currentSelectedModelKey) || "";
-
-    const allowedModelIds = modelsCatalog
-        .map((item) => String(item?.model_id || "").trim())
-        .filter(Boolean);
-
-    const defaultModelId =
-        savedSelectedModel && allowedModelIds.includes(savedSelectedModel)
-            ? savedSelectedModel
-            : allowedModelIds[0] ||
-              (data.allowedModels || "")
-                  .split(",")
-                  .map((item: string) => item.trim())
-                  .filter(Boolean)[0] ||
-              "";
-
-    if (defaultModelId) {
-        localStorage.setItem(currentSelectedModelKey, defaultModelId);
-    } else {
-        localStorage.removeItem(currentSelectedModelKey);
-    }
-
-    const maxParallelModels = normalizePositiveInt(
-        data.maxParallelModels,
-        1
-    );
-
-    localStorage.setItem(
-        "ai_max_parallel_models",
-        String(maxParallelModels)
-    );
-
-    const currentParallelCountKey = getParallelCountKey(cleanEmail);
-    const savedParallelCountRaw =
-        localStorage.getItem(currentParallelCountKey) || "";
-    const savedParallelCount = normalizePositiveInt(
-        savedParallelCountRaw,
-        1
-    );
-
-    const allowedParallelOptions =
-        getAllowedParallelOptions(maxParallelModels);
-
-    const defaultParallelCount = allowedParallelOptions.includes(
-        savedParallelCount
-    )
-        ? savedParallelCount
-        : 1;
-
-    localStorage.setItem(
-        currentParallelCountKey,
-        String(defaultParallelCount)
-    );
-
-    window.dispatchEvent(new Event("ai-models-catalog-updated"));
-    window.dispatchEvent(new Event("ai-selected-model-updated"));
-    window.dispatchEvent(new Event("ai-parallel-settings-updated"));
+const applyLoginState = (data: LoginResponse, cleanEmail: string) => {
+    saveAuthSessionAndResetChatState(data, cleanEmail);
 };
 
 const Start = () => {
     const router = useRouter();
+
+    useEffect(() => {
+        clearPostAuthReloadFlag();
+    }, []);
 
     const [firstName, setFirstName] = useState("");
     const [email, setEmail] = useState("");
@@ -368,10 +260,9 @@ const Start = () => {
                 return;
             }
 
-            await applyLoginState(loginData, cleanEmail);
+            applyLoginState(loginData, cleanEmail);
             localStorage.setItem("ai_remember_email", cleanEmail);
-
-            router.push("/chat");
+            hardNavigateAfterAuth("/chat");
         } catch {
             setErrorText("Ошибка сети или CORS");
         } finally {
@@ -468,9 +359,9 @@ const Start = () => {
                 return;
             }
 
-            await applyLoginState(loginData, cleanPendingEmail);
+            applyLoginState(loginData, cleanPendingEmail);
             setPendingPassword("");
-            router.push("/chat");
+            hardNavigateAfterAuth("/chat");
         } catch {
             setErrorText("Ошибка сети или CORS");
         } finally {
