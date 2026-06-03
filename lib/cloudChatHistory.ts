@@ -742,16 +742,28 @@ export const replaceLocalChatsWithCloud = <T extends CloudChatSession>(
   cloudSessions: CloudChatSession[],
 ): T[] => {
   const deletedIds = readDeletedChatIds();
+
+  const cloudIds = new Set(
+    cloudSessions
+      .map((session) => String(session.id || "").trim())
+      .filter(Boolean),
+  );
+
   const localById = new Map<string, T>();
 
   localSessions.forEach((session) => {
-    if (!deletedIds.has(session.id)) {
-      localById.set(session.id, session);
-    }
+    const sessionId = String(session.id || "").trim();
+    if (!sessionId) return;
+    if (deletedIds.has(sessionId)) return;
+
+    localById.set(sessionId, session);
   });
 
-  const reconciledSessions = cloudSessions
-    .filter((cloudSession) => !deletedIds.has(cloudSession.id))
+  const reconciledCloudSessions = cloudSessions
+    .filter((cloudSession) => {
+      const cloudId = String(cloudSession.id || "").trim();
+      return cloudId && !deletedIds.has(cloudId);
+    })
     .map((cloudSession) => {
       const existing = localById.get(cloudSession.id);
       const cloudSelectedModels = normalizeSelectedModels(
@@ -760,16 +772,23 @@ export const replaceLocalChatsWithCloud = <T extends CloudChatSession>(
       const existingSelectedModels = normalizeSelectedModels(
         existing?.selected_models,
       );
+
       const nextSession = {
         ...(existing || {}),
         ...cloudSession,
-        messages: existing?.messages || cloudSession.messages || [],
+        messages:
+          existing?.messages && existing.messages.length > 0
+            ? existing.messages
+            : cloudSession.messages || [],
         title: cloudSession.title || existing?.title || "Новый чат",
         mode: cloudSession.mode || existing?.mode,
         selected_models: cloudSelectedModels.length
           ? cloudSelectedModels
           : existingSelectedModels,
-        updatedAt: cloudSession.updatedAt || existing?.updatedAt || Date.now(),
+        updatedAt:
+          cloudSession.updatedAt ||
+          existing?.updatedAt ||
+          Date.now(),
       } as T;
 
       persistCloudChatUiSettings(nextSession);
@@ -777,7 +796,16 @@ export const replaceLocalChatsWithCloud = <T extends CloudChatSession>(
       return nextSession;
     });
 
-  return reconciledSessions.sort(
+  const localOnlySessions = localSessions.filter((session) => {
+    const sessionId = String(session.id || "").trim();
+    if (!sessionId) return false;
+    if (deletedIds.has(sessionId)) return false;
+    if (cloudIds.has(sessionId)) return false;
+
+    return true;
+  });
+
+  return [...localOnlySessions, ...reconciledCloudSessions].sort(
     (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0),
   );
 };
