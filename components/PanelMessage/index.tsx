@@ -43,6 +43,8 @@ const SUMMARY_MODEL_ID = "summary";
 const SUMMARY_MODEL_LABEL = "✨ Саммари";
 const CHAT_DRAFT_STORAGE_KEY = "ai_chat_draft_message";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
+const FILE_UNAVAILABLE_MESSAGE =
+    "Файл больше недоступен. Загрузите его заново, если хотите продолжить работу с ним.";
 
 type ChatMode = "chat" | "search" | "image" | "video";
 
@@ -109,6 +111,15 @@ type ParsedFileUploadResponse = {
     success: boolean;
     authError: boolean;
     message: string;
+    r2Key?: string;
+    fileName?: string;
+    mimeType?: string;
+};
+
+type ActiveFileContext = {
+    name: string;
+    mimeType: string;
+    r2Key: string;
 };
 
 type ImageOptionState = {
@@ -534,6 +545,39 @@ const extractUploadMessage = (value: unknown): string => {
     );
 };
 
+const extractUploadTextField = (value: unknown, fields: string[]): string => {
+    if (!isRecord(value)) return "";
+
+    for (const field of fields) {
+        const direct = readTextField(value, field);
+        if (direct) return direct.trim();
+    }
+
+    const nestedJson = value.json;
+    if (isRecord(nestedJson)) {
+        for (const field of fields) {
+            const nested = readTextField(nestedJson, field);
+            if (nested) return nested.trim();
+        }
+    }
+
+    return "";
+};
+
+const isFileUnavailableResponse = (text: string): boolean => {
+    const normalized = String(text || "").toLowerCase();
+    if (!normalized) return false;
+
+    return [
+        /файл[^.!?\n]*(не найден|недоступ|удал[её]н)/i,
+        /контекст[^.!?\n]*файл[^.!?\n]*(очищен|отсутств|нет|недоступ)/i,
+        /нет[^.!?\n]*активн[^.!?\n]*файл/i,
+        /file[^.!?\n]*(not found|unavailable|deleted|missing)/i,
+        /no[^.!?\n]*active[^.!?\n]*file/i,
+        /file[^.!?\n]*context[^.!?\n]*(cleared|not found|unavailable|missing)/i,
+    ].some((pattern) => pattern.test(normalized));
+};
+
 const parseFileUploadResponse = (
     raw: string,
     status: number,
@@ -571,11 +615,43 @@ const parseFileUploadResponse = (
             extractSuccessFlag(payload) ?? extractSuccessFlag(data) ?? false;
         const extractedMessage =
             extractUploadMessage(payload) || extractUploadMessage(data);
+        const r2Key =
+            extractUploadTextField(payload, ["r2_key", "r2Key", "key"]) ||
+            extractUploadTextField(data, ["r2_key", "r2Key", "key"]);
+        const fileName =
+            extractUploadTextField(payload, [
+                "file_name",
+                "fileName",
+                "filename",
+                "name",
+            ]) ||
+            extractUploadTextField(data, [
+                "file_name",
+                "fileName",
+                "filename",
+                "name",
+            ]);
+        const mimeType =
+            extractUploadTextField(payload, [
+                "mime_type",
+                "mimeType",
+                "content_type",
+                "type",
+            ]) ||
+            extractUploadTextField(data, [
+                "mime_type",
+                "mimeType",
+                "content_type",
+                "type",
+            ]);
 
         return {
             success: Boolean(responseOk) && successFlag === true,
             authError,
             message: extractedMessage || fallbackMessage,
+            r2Key,
+            fileName,
+            mimeType,
         };
     } catch {
         return {
@@ -657,8 +733,8 @@ const PanelMessage = () => {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [isUploadingFile, setIsUploadingFile] = useState(false);
     const [isFileDragActive, setIsFileDragActive] = useState(false);
-    const [attachedFileName, setAttachedFileName] = useState("");
-    const [attachedFileMimeType, setAttachedFileMimeType] = useState("");
+    const [activeFileContext, setActiveFileContext] =
+        useState<ActiveFileContext | null>(null);
     const [attachedFileError, setAttachedFileError] = useState("");
     const [summaryOpen, setSummaryOpen] = useState(false);
     const [summaryText, setSummaryText] = useState("");
@@ -668,6 +744,9 @@ const PanelMessage = () => {
     const [imageOptionsByModel, setImageOptionsByModel] = useState<
         Record<string, ImageOptionState>
     >({});
+
+    const attachedFileName = activeFileContext?.name || "";
+    const attachedFileMimeType = activeFileContext?.mimeType || "";
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -698,8 +777,8 @@ const PanelMessage = () => {
         setImageOptionsByModel(
             readSessionUiSettings(sessionIdFromUrl)?.imageOptionsByModel || {}
         );
-        setAttachedFileName(resolvedSettings.attachedFileName || "");
-        setAttachedFileMimeType(resolvedSettings.attachedFileMimeType || "");
+        setActiveFileContext(null);
+        clearSessionAttachedFileContext(sessionIdFromUrl);
         setAttachedFileError("");
         setCatalogVersion((value) => value + 1);
     }, [sessionIdFromUrl]);
@@ -1000,8 +1079,7 @@ const PanelMessage = () => {
             if (uploadResponse.authError) {
                 localStorage.removeItem("ai_session_token");
                 localStorage.removeItem("ai_session_expires_at");
-                setAttachedFileName("");
-                setAttachedFileMimeType("");
+                setActiveFileContext(null);
                 writeSessionUiSettings(currentSession.id, {
                     attachedFileName: "",
                     attachedFileMimeType: "",
@@ -1014,8 +1092,7 @@ const PanelMessage = () => {
             }
 
             if (!uploadResponse.success) {
-                setAttachedFileName("");
-                setAttachedFileMimeType("");
+                setActiveFileContext(null);
                 writeSessionUiSettings(currentSession.id, {
                     attachedFileName: "",
                     attachedFileMimeType: "",
@@ -1026,18 +1103,17 @@ const PanelMessage = () => {
                 throw new Error(uploadResponse.message);
             }
 
-            setAttachedFileName(file.name);
-            writeSessionUiSettings(currentSession.id, {
-                attachedFileName: file.name,
-                attachedFileMimeType: file.type || "",
+            setActiveFileContext({
+                name: uploadResponse.fileName || file.name,
+                mimeType: uploadResponse.mimeType || file.type || "",
+                r2Key: uploadResponse.r2Key || "",
             });
-            setAttachedFileMimeType(file.type || "");
+            clearSessionAttachedFileContext(currentSession.id);
         } catch (error) {
             setAttachedFileError(
                 error instanceof Error ? error.message : "Ошибка загрузки файла"
             );
-            setAttachedFileName("");
-            setAttachedFileMimeType("");
+            setActiveFileContext(null);
             const { currentSession } = getCurrentSession();
             writeSessionUiSettings(currentSession?.id, {
                 attachedFileName: "",
@@ -1081,6 +1157,8 @@ const PanelMessage = () => {
             return;
         }
     
+        setActiveFileContext(null);
+        clearSessionAttachedFileContext(sessionIdFromUrl);
         setAttachedFileError("");
     
         try {
@@ -1110,8 +1188,7 @@ const PanelMessage = () => {
                 );
             }
     
-            setAttachedFileName("");
-            setAttachedFileMimeType("");
+            setActiveFileContext(null);
             setAttachedFileError("");
             clearSessionAttachedFileContext(sessionIdFromUrl);
         } catch (error) {
@@ -1374,6 +1451,7 @@ const PanelMessage = () => {
             );
 
         let workingSessions = sessions;
+        const activeFileContextForRequest = activeFileContext;
 
         if (!currentSession) {
             currentSession = {
@@ -1392,8 +1470,9 @@ const PanelMessage = () => {
             id: crypto.randomUUID(),
             role: "user",
             content: text,
-            attached_file_name: attachedFileName || undefined,
-            attached_file_mime_type: attachedFileMimeType || undefined,
+            attached_file_name: activeFileContextForRequest?.name || undefined,
+            attached_file_mime_type:
+                activeFileContextForRequest?.mimeType || undefined,
         };
 
         const loadingMessages: ChatMessage[] = selectedModels.map((model) => ({
@@ -1502,6 +1581,9 @@ const PanelMessage = () => {
                                           user_email: currentUser,
                                           session_token: sessionToken,
                                           mode: requestMode,
+                                          active_file_r2_key:
+                                              activeFileContextForRequest?.r2Key ||
+                                              undefined,
                                       }
                             ),
                             signal: controller.signal,
@@ -1548,6 +1630,16 @@ const PanelMessage = () => {
                             );
                             setSessionExpiredModalOpen(true);
                             return;
+                        }
+
+                        if (
+                            activeFileContextForRequest &&
+                            isFileUnavailableResponse(parsedResponse.text)
+                        ) {
+                            setActiveFileContext(null);
+                            clearSessionAttachedFileContext(currentSession.id);
+                            setAttachedFileError(FILE_UNAVAILABLE_MESSAGE);
+                            parsedResponse.text = FILE_UNAVAILABLE_MESSAGE;
                         }
 
                         if (parsedResponse.modelAccessError) {
