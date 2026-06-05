@@ -25,6 +25,7 @@ const PROJECT_SESSION_KEYS = [
     USER_EMAIL_STORAGE_KEY,
     "ai_session_token",
     "ai_session_expires_at",
+    "ai_user_id",
     "ai_user_first_name",
     "ai_user_name",
     "ai_plan_type",
