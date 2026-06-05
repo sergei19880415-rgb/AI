@@ -26,6 +26,7 @@ export type AuthSessionPayload = {
     modelsCatalog?: AuthModelCatalogItem[];
     sessionToken?: string;
     sessionExpiresAt?: string;
+    userId?: string;
 };
 
 export const POST_AUTH_RELOAD_FLAG_KEY = "omniai_auth_reload_done";
@@ -83,6 +84,7 @@ export const saveAuthSessionAndResetChatState = (
 
     localStorage.setItem("ai_session_token", data.sessionToken || "");
     localStorage.setItem("ai_session_expires_at", data.sessionExpiresAt || "");
+    localStorage.setItem("ai_user_id", data.userId || "");
     localStorage.setItem("ai_user_first_name", resolvedFirstName);
     localStorage.setItem("ai_user_name", resolvedFullName);
     localStorage.setItem("ai_plan_type", data.planType || "Базовый");
