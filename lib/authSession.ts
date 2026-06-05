@@ -1,5 +1,4 @@
 import {
-    clearCurrentOmniAiChatState,
     getUserScopedKey,
     migrateUserScopedStorage,
     normalizeUserEmail,
@@ -37,6 +36,52 @@ const getSelectedModelKey = (userEmail: string) => {
 
 const getParallelCountKey = (userEmail: string) => {
     return getUserScopedKey("ai_parallel_count_", userEmail);
+};
+
+const clearPostLoginTransientChatState = (userEmail: string) => {
+    if (typeof window === "undefined") return;
+
+    localStorage.removeItem("ai_chat_draft_message");
+    sessionStorage.removeItem("ai_chat_draft_message");
+
+    const chatUiSettingsKey = getUserScopedKey("ai_chat_ui_settings_", userEmail);
+    const rawSettings = localStorage.getItem(chatUiSettingsKey);
+
+    if (!rawSettings) return;
+
+    try {
+        const parsed = JSON.parse(rawSettings) as unknown;
+
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            return;
+        }
+
+        const sanitizedSettings = Object.fromEntries(
+            Object.entries(parsed).map(([sessionId, value]) => {
+                if (!value || typeof value !== "object" || Array.isArray(value)) {
+                    return [sessionId, value];
+                }
+
+                return [
+                    sessionId,
+                    {
+                        ...value,
+                        attachedFileName: "",
+                        attachedFileMimeType: "",
+                    },
+                ];
+            })
+        );
+
+        localStorage.setItem(
+            chatUiSettingsKey,
+            JSON.stringify(sanitizedSettings)
+        );
+    } catch {
+        // Keep saved chats intact even if optional UI settings are malformed.
+    }
+
+    window.dispatchEvent(new Event("ai-chat-updated"));
 };
 
 const normalizePositiveInt = (value: unknown, fallback: number) => {
@@ -101,7 +146,7 @@ export const saveAuthSessionAndResetChatState = (
     const maxParallelModels = normalizePositiveInt(data.maxParallelModels, 1);
     localStorage.setItem("ai_max_parallel_models", String(maxParallelModels));
 
-    clearCurrentOmniAiChatState(cleanEmail);
+    clearPostLoginTransientChatState(cleanEmail);
 
     const currentSelectedModelKey = getSelectedModelKey(cleanEmail);
     const savedSelectedModel = localStorage.getItem(currentSelectedModelKey) || "";
