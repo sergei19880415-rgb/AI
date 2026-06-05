@@ -210,6 +210,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isTelegramLoading, setIsTelegramLoading] = useState(false);
     const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
+    const [telegramWidgetError, setTelegramWidgetError] = useState("");
     const [successText, setSuccessText] = useState("");
 
     useEffect(() => {
@@ -518,12 +519,32 @@ const Start = ({ onRequireEmailVerification }: Props) => {
         script.setAttribute("data-request-access", "write");
 
         script.onerror = () => {
-            setErrorText("Не удалось загрузить вход через Telegram");
+            setTelegramWidgetError(
+                "Не удалось загрузить вход через Telegram. Проверьте домен в настройках бота."
+            );
         };
+
+        const detectWidgetError = () => {
+            const widgetText = container.textContent || "";
+
+            if (widgetText.toLowerCase().includes("bot domain invalid")) {
+                container.innerHTML = "";
+                setTelegramWidgetError(
+                    "Не удалось загрузить вход через Telegram. Проверьте домен в настройках бота."
+                );
+            }
+        };
+
+        const observer = new MutationObserver(detectWidgetError);
+        observer.observe(container, { childList: true, subtree: true });
+
+        const errorCheckTimeout = window.setTimeout(detectWidgetError, 1800);
 
         container.appendChild(script);
 
         return () => {
+            observer.disconnect();
+            window.clearTimeout(errorCheckTimeout);
             container.innerHTML = "";
 
             if (window.onTelegramAuth) {
@@ -559,7 +580,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             theme: "outline",
             size: "large",
             text: "signin_with",
-            shape: "pill",
+            shape: "rectangular",
             logo_alignment: "left",
             width: buttonWidth,
         });
@@ -587,72 +608,98 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             />
 
             <Head
-                title="Вход в AI-агрегатор"
-                description="Войди, чтобы открыть чат и свои доступные модели."
+                title="Вход в OmniAI"
+                description="Войдите, чтобы открыть чаты, модели и историю"
             />
 
-            <div className="mb-3 space-y-3 rounded-2xl border border-gray-100 bg-white p-2 shadow-xs dark:border-gray-800 dark:bg-gray-900">
-                <div>
+            <section className="mb-6 space-y-3" aria-label="Быстрый вход">
+                <div className="text-center text-body-sm font-medium text-gray-500">
+                    Продолжить с помощью
+                </div>
+
+                <div className="space-y-3">
                     <div
-                        className={`flex min-h-11 w-full items-center justify-center overflow-hidden rounded-full ${
+                        className={`relative h-14 overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] ${
                             isLoading || isGoogleLoading || isTelegramLoading
-                                ? "pointer-events-none opacity-60"
+                                ? "pointer-events-none opacity-70"
                                 : ""
                         }`}
-                        ref={googleButtonContainerRef}
-                    />
+                    >
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-3 px-4 text-body-md font-semibold text-gray-800">
+                            <Image
+                                className="absolute left-5 size-5 opacity-100"
+                                src="/images/google.svg"
+                                width={20}
+                                height={20}
+                                alt=""
+                            />
+                            {isGoogleLoading ? "Входим..." : "Войти через Google"}
+                        </div>
+                        <div
+                            className="absolute inset-0 flex items-center justify-center opacity-0"
+                            ref={googleButtonContainerRef}
+                            aria-hidden="true"
+                        />
+                    </div>
+
                     {!isGoogleScriptReady && (
-                        <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300 dark:bg-primary-300/10">
+                        <div className="rounded-xl bg-primary-0 px-3 py-2 text-center text-body-sm text-primary-300">
                             Загружаем вход через Google...
                         </div>
                     )}
-                    {isGoogleScriptReady && !isGoogleLoading && (
-                        <div className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                            Выберите Google-аккаунт для входа
+
+                    <div>
+                        <div
+                            className={`relative h-14 overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] ${
+                                isLoading ||
+                                isGoogleLoading ||
+                                isTelegramLoading ||
+                                telegramWidgetError
+                                    ? "pointer-events-none opacity-70"
+                                    : ""
+                            }`}
+                        >
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-3 px-4 text-body-md font-semibold text-gray-800">
+                                <span className="absolute left-5 inline-flex size-5 items-center justify-center rounded-full bg-[#229ED9] text-gray-0">
+                                    <svg
+                                        className="size-3.5"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="M20.5 4.5 3.6 11.1c-1.1.4-1.1 1.1-.2 1.4l4.3 1.3 1.7 5.1c.2.5.3.7.7.7.3 0 .5-.1.8-.4l2.4-2.3 4.9 3.6c.9.5 1.5.3 1.7-.8l3.1-14.6c.3-1.2-.5-1.7-1.5-1.2Zm-3.1 3.3-8.2 7.4-.3 3.1-1.3-4.5 9.4-6.1c.4-.3.8-.1.4.1Z"
+                                            fill="currentColor"
+                                        />
+                                    </svg>
+                                </span>
+                                {isTelegramLoading
+                                    ? "Входим..."
+                                    : "Войти через Telegram"}
+                            </div>
+                            <div
+                                aria-label="Войти через Telegram"
+                                className="absolute inset-0 flex items-center justify-center opacity-0"
+                                ref={telegramButtonContainerRef}
+                            />
                         </div>
-                    )}
-                    {isGoogleLoading && (
-                        <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300 dark:bg-primary-300/10">
-                            Выберите Google-аккаунт для входа
-                        </div>
-                    )}
+
+                        {telegramWidgetError && (
+                            <div className="mt-2 rounded-xl bg-error-0 px-3 py-2 text-body-sm text-error-200">
+                                {telegramWidgetError}
+                            </div>
+                        )}
+                    </div>
                 </div>
+            </section>
 
-                <div>
-                    <div
-                        aria-label="Войти через Telegram"
-                        className={`flex min-h-11 w-full items-center justify-center overflow-hidden rounded-lg ${
-                            isLoading || isGoogleLoading || isTelegramLoading
-                                ? "pointer-events-none opacity-60"
-                                : ""
-                        }`}
-                        ref={telegramButtonContainerRef}
-                    />
-                    {isTelegramLoading && (
-                        <div className="mt-2 rounded-xl bg-primary-25 px-3 py-2 text-center text-sm text-primary-300 dark:bg-primary-300/10">
-                            Входим через Telegram...
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <Button className="w-full" isSecondary type="button">
-                <Image
-                    className="w-5 opacity-100"
-                    src="/images/apple.svg"
-                    width={20}
-                    height={20}
-                    alt="Apple"
-                />
-                Войти через Apple
-            </Button>
-
-            <div className="flex items-center gap-6 my-4 text-body-sm text-gray-400 before:grow before:h-0.25 before:bg-gray-50 after:grow after:h-0.25 after:bg-gray-50">
-                Или войти по email
+            <div className="mb-5 flex items-center gap-4 text-body-sm text-gray-400 before:h-px before:grow before:bg-gray-100 after:h-px after:grow after:bg-gray-100">
+                или войти по email
             </div>
 
             <Field
-                className="mb-3"
+                className="mb-4"
+                classInput="!h-14 !rounded-[0.875rem] !border-gray-100 !px-4"
                 label="Email"
                 placeholder="Введите email"
                 type="email"
@@ -663,7 +710,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             />
 
             <Field
-                className="mb-2"
+                className="mb-3"
+                classInput="!h-14 !rounded-[0.875rem] !border-gray-100 !px-4 !pr-12"
                 label="Пароль"
                 placeholder="Введите пароль"
                 type="password"
@@ -674,20 +722,24 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             />
 
             {errorText && (
-                <div className="mb-3 text-sm text-red-600">{errorText}</div>
+                <div className="mb-3 rounded-xl bg-error-0 px-3 py-2 text-body-sm text-error-200">
+                    {errorText}
+                </div>
             )}
             {successText && (
-                <div className="mb-3 text-sm text-green-700">{successText}</div>
+                <div className="mb-3 rounded-xl bg-success-0 px-3 py-2 text-body-sm text-success-200">
+                    {successText}
+                </div>
             )}
 
-            <div className="flex justify-between items-center h-10 mb-4">
+            <div className="mb-5 flex min-h-10 items-center justify-between gap-4 max-sm:flex-col max-sm:items-start max-sm:gap-2">
                 <Checkbox
                     label="Запомнить меня"
                     checked={remember}
                     onChange={() => setRemember(!remember)}
                 />
                 <Link
-                    className="font-medium text-primary-200 transition-colors hover:text-primary-300"
+                    className="text-body-sm font-medium text-primary-200 transition-colors hover:text-primary-300"
                     href="/auth/forgot-password"
                 >
                     Забыли пароль?
@@ -695,7 +747,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             </div>
 
             <Button
-                className="w-full mb-2"
+                className="mb-3 !h-14 w-full !rounded-[0.875rem] disabled:opacity-70"
                 isPrimary
                 type="button"
                 onClick={handleLogin}
@@ -707,11 +759,11 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                     !password.trim()
                 }
             >
-                {isLoading ? "Проверка..." : "Войти"}
+                {isLoading ? "Входим..." : "Войти"}
             </Button>
 
-            <div className="flex justify-center items-center gap-2 h-14 text-body-sm">
-                <div className="text-gray-600">Нет аккаунта?</div>
+            <div className="flex items-center justify-center gap-2 pt-1 text-body-sm">
+                <div className="text-gray-500">Нет аккаунта?</div>
                 <Link
                     className="font-medium text-primary-200 transition-colors hover:text-primary-300"
                     href="/auth/sign-up"
