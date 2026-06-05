@@ -32,7 +32,7 @@ const Layout = ({ children }: Props) => {
     const [theme, setTheme] = useState<SelectOption | null>(themeOptions[0]);
 
     return (
-        <div className="min-h-[100svh] flex flex-col max-md:bg-gray-25">
+        <div className="flex min-h-[100svh] flex-col bg-gray-25">
             <div className="flex justify-between items-center px-10 py-5 max-xl:p-4">
                 <Select
                     classButton="h-11 bg-gray-0"
@@ -45,13 +45,13 @@ const Layout = ({ children }: Props) => {
                     <Icon name="help-circle" />
                 </Button>
             </div>
-            <div className="flex justify-center items-center grow p-10 max-xl:p-4">
-                <div className="max-w-130 w-full p-6 bg-gray-0 rounded-2xl shadow-[0_0.125rem_0.625rem_0_rgba(38,39,64,0.03)] max-md:p-4">
+            <div className="flex grow items-center justify-center px-6 py-8 max-md:px-4 max-md:py-4">
+                <div className="w-full max-w-140 rounded-3xl border border-gray-100 bg-gray-0 p-10 shadow-[0_1.5rem_3.75rem_rgba(38,39,64,0.08)] max-md:p-6 max-sm:rounded-2xl max-sm:p-5">
                     {children}
                 </div>
             </div>
             <div className="flex justify-between items-center h-21 px-10 max-xl:h-16 max-xl:px-4 max-md:h-auto max-md:flex-col max-md:gap-2.5 max-md:py-8">
-                <div className="text-gray-400">©️ 2025 MAX AI</div>
+                <div className="text-gray-400">©️ 2025 OmniAI</div>
                 <div className="flex gap-8 max-md:gap-12">
                     {documents.map((document) => (
                         <Link
