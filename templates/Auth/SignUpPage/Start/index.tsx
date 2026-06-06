@@ -401,7 +401,7 @@ const Start = () => {
     return (
         <>
             <Head
-                title="Создай аккаунт в MAX AI"
+                title="Создай аккаунт в OmniAI"
                 description="Зарегистрируйся и начни пользоваться AI-агрегатором."
             />
 

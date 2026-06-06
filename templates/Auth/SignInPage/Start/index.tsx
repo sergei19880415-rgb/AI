@@ -663,18 +663,24 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                     )}
 
                     <div
-                        className={`rounded-[0.875rem] border border-gray-100 bg-gray-0 px-3 py-2.5 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] ${
+                        className={`rounded-[0.875rem] border border-gray-100 bg-gray-0 px-4 py-2.5 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] ${
                             isLoading || isGoogleLoading || isTelegramLoading
                                 ? "opacity-70"
                                 : ""
                         }`}
                     >
-                        <div className="flex min-h-10 items-center justify-center overflow-hidden rounded-xl">
-                            <div
-                                className="flex max-w-full items-center justify-center overflow-hidden [&>*]:!max-w-full [&_iframe]:!max-w-full [&_iframe]:!align-middle"
-                                ref={telegramWidgetRef}
-                                aria-label="Войти через Telegram"
-                            />
+                        <div className="grid min-h-9 grid-cols-[1.25rem_1fr_1.25rem] items-center gap-2">
+                            <span className="flex size-5 items-center justify-center rounded-full bg-[#229ED9] text-[12px] font-bold leading-none text-white">
+                                T
+                            </span>
+                            <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-xl">
+                                <div
+                                    className="flex max-w-full items-center justify-center overflow-hidden [&>*]:!max-w-full [&_iframe]:!max-w-full [&_iframe]:!align-middle"
+                                    ref={telegramWidgetRef}
+                                    aria-label="Войти через Telegram"
+                                />
+                            </div>
+                            <span aria-hidden="true" />
                         </div>
 
                         {isTelegramLoading && (

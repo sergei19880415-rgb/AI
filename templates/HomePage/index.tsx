@@ -162,12 +162,35 @@ const HomePage = () => {
         };
     });
 
-    const renderEmptyWorkspace = (label: string) => (
-        <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-25/60 px-4 text-center">
-            <div className="text-[13px] font-medium text-gray-700">{label}</div>
-            <div className="mt-1 text-[12px] text-gray-500">Окно готово к работе</div>
-        </div>
-    );
+    const renderEmptyWorkspace = () => {
+        const quickPrompts = [
+            "Объясни простыми словами",
+            "Сравни варианты",
+            "Проанализируй файл",
+            "Придумай идеи",
+        ];
+
+        return (
+            <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-25/60 px-4 py-6 text-center">
+                <div className="text-[18px] font-semibold leading-6 text-gray-900">
+                    С чего начнём?
+                </div>
+                <div className="mt-2 max-w-80 text-[13px] leading-5 text-gray-500">
+                    Выберите модель, задайте вопрос или прикрепите файл.
+                </div>
+                <div className="mt-5 grid w-full max-w-[26rem] grid-cols-1 gap-2 sm:grid-cols-2">
+                    {quickPrompts.map((prompt) => (
+                        <div
+                            key={prompt}
+                            className="rounded-xl border border-gray-100 bg-white px-3 py-2 text-[12px] font-medium text-gray-600 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)]"
+                        >
+                            {prompt}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <Layout classWrapper="flex h-full min-h-0 flex-col overflow-hidden px-3 pb-2 pt-2 md:px-4 md:pb-3 md:pt-3">
@@ -200,7 +223,7 @@ const HomePage = () => {
                                 </div>
 
                                 <div className="min-h-0 flex-1 overflow-auto p-3">
-                                    {renderEmptyWorkspace("Пустое окно чата")}
+                                    {renderEmptyWorkspace()}
                                 </div>
                             </div>
                         ))}
@@ -211,13 +234,13 @@ const HomePage = () => {
                                 key={`image-window-${index}`}
                                 className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white p-3"
                             >
-                                {renderEmptyWorkspace(`Пустое окно изображения ${index + 1}`)}
+                                {renderEmptyWorkspace()}
                             </div>
                         ))}
 
                     {uiMode === "video" && (
                         <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white p-3">
-                            {renderEmptyWorkspace("Пустое окно видео")}
+                            {renderEmptyWorkspace()}
                         </div>
                     )}
                 </div>

@@ -12,6 +12,8 @@ type ChatMessage = {
     id: string;
     role: "user" | "assistant";
     content: string;
+    model_id?: string;
+    model_provider?: string;
 };
 
 type ChatSession = {
@@ -21,8 +23,67 @@ type ChatSession = {
     updatedAt: number;
     folder?: string;
     isPinned?: boolean;
+    selected_models?: string[];
 };
 
+type ModelIconSource = {
+    modelId?: string;
+    provider?: string;
+};
+
+const getModelIcon = ({ modelId, provider }: ModelIconSource) => {
+    const id = String(modelId || "").trim().toLowerCase();
+    const prov = String(provider || "").trim().toLowerCase();
+    const combined = `${prov} ${id}`;
+
+    if (!combined.trim()) return "";
+    if (combined.includes("gemini") || combined.includes("google")) return "✨";
+    if (combined.includes("claude") || combined.includes("anthropic")) return "◈";
+    if (combined.includes("grok") || combined.includes("xai") || combined.includes("x.ai")) return "✕";
+    if (combined.includes("perplexity") || combined.includes("sonar")) return "◆";
+    if (combined.includes("openai") || combined.includes("gpt") || combined.includes("o1") || combined.includes("o3") || combined.includes("o4")) return "◌";
+
+    return "◇";
+};
+
+const getChatModelIconItems = (session: ChatSession) => {
+    const sources: ModelIconSource[] = [];
+    const selectedModels = Array.isArray(session.selected_models)
+        ? session.selected_models
+        : [];
+
+    for (const modelId of selectedModels) {
+        const cleanModelId = String(modelId || "").trim();
+        if (cleanModelId) sources.push({ modelId: cleanModelId });
+    }
+
+    if (sources.length === 0) {
+        for (const message of session.messages || []) {
+            if (message.role !== "assistant") continue;
+            const cleanModelId = String(message.model_id || "").trim();
+            if (cleanModelId) {
+                sources.push({
+                    modelId: cleanModelId,
+                    provider: message.model_provider,
+                });
+            }
+        }
+    }
+
+    const uniqueIcons: string[] = [];
+
+    for (const source of sources) {
+        const icon = getModelIcon(source);
+        if (icon && !uniqueIcons.includes(icon)) {
+            uniqueIcons.push(icon);
+        }
+    }
+
+    return {
+        icons: uniqueIcons.slice(0, 3),
+        extraCount: Math.max(uniqueIcons.length - 3, 0),
+    };
+};
 
 const getSessionsKey = () => {
     return getUserScopedKey("ai_sessions_");
@@ -235,6 +296,7 @@ const RecentChats = () => {
 
     const renderChatRow = (item: ChatSession) => {
         const isActive = pathname.startsWith("/chat") && item.id === activeId;
+        const modelIconItems = getChatModelIconItems(item);
 
         return (
             <div
@@ -261,13 +323,27 @@ const RecentChats = () => {
 
                         <div className="min-w-0 flex-1">
                             <div
-                                className={`truncate text-[13px] ${
+                                className={`flex items-center gap-1 truncate text-[13px] ${
                                     isActive
                                         ? "font-medium text-gray-900"
                                         : "text-gray-700"
                                 }`}
                             >
-                                {item.title || "Новый чат"}
+                                {modelIconItems.icons.length > 0 && (
+                                    <span className="mr-0.5 inline-flex shrink-0 items-center gap-0.5 text-[11px] leading-none">
+                                        {modelIconItems.icons.map((icon, index) => (
+                                            <span key={`${icon}-${index}`}>{icon}</span>
+                                        ))}
+                                        {modelIconItems.extraCount > 0 && (
+                                            <span className="ml-0.5 rounded-full bg-gray-100 px-1 text-[9px] font-medium leading-4 text-gray-500">
+                                                +{modelIconItems.extraCount}
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
+                                <span className="min-w-0 truncate">
+                                    {item.title || "Новый чат"}
+                                </span>
                             </div>
                         </div>
                     </div>

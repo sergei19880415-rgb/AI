@@ -307,7 +307,7 @@ const Answer = ({
 
                 <div className="min-w-0">
                     {children && (
-                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[14px] text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
+                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[15px] leading-6 text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
                             {typeof children === "string" ? (
                                 <AssistantMarkdown content={children} />
                             ) : (

@@ -553,48 +553,73 @@ const ChatVersions = () => {
                 })}
             </div>
 
-            {currentSlots.map(({ slotIndex, modelId, modelInfo }) => (
-                <div key={`${activeMode}-${slotIndex}`} className="relative">
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setOpenSlotIndex((prev) =>
-                                prev === slotIndex ? null : slotIndex
-                            )
-                        }
-                        className="flex h-10 min-w-[170px] max-w-[220px] items-center gap-2 rounded-xl border border-gray-100 bg-white px-3 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] transition-colors hover:bg-gray-25"
-                    >
-                        <div className="relative shrink-0">
-                            <Image
-                                className="h-5 w-5 rounded-full object-contain"
-                                src={getModelLogoSrc(
-                                    modelInfo?.model_id,
-                                    modelInfo?.provider
-                                )}
-                                width={20}
-                                height={20}
-                                alt={modelInfo?.display_name || "Модель"}
-                            />
-                        </div>
+            {currentSlots.map(({ slotIndex, modelId, modelInfo }) => {
+                const hasSelectedModel = Boolean(modelId && modelInfo);
 
-                        <div className="min-w-0 flex-1 text-left leading-none">
-                            <div className="truncate text-[13px] font-medium leading-4 text-primary-300">
-                                {modelInfo?.display_name ||
-                                    modelId ||
-                                    emptyTitle}
-                            </div>
-                            <div className="truncate text-[10px] leading-[11px] text-gray-500">
-                                {modelInfo?.provider || emptyProvider}
-                            </div>
-                        </div>
-
-                        <Icon
-                            className={`shrink-0 fill-gray-500 transition-transform ${
-                                openSlotIndex === slotIndex ? "rotate-180" : ""
+                return (
+                    <div key={`${activeMode}-${slotIndex}`} className="relative">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setOpenSlotIndex((prev) =>
+                                    prev === slotIndex ? null : slotIndex
+                                )
+                            }
+                            className={`flex h-12 min-w-[190px] max-w-[240px] items-center gap-2 rounded-2xl border px-2.5 pr-3 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.05)] transition-colors ${
+                                hasSelectedModel
+                                    ? "border-primary-100 bg-white hover:bg-primary-0/40"
+                                    : "border-gray-100 bg-gray-25/70 text-gray-600 hover:bg-white"
                             }`}
-                            name="chevron"
-                        />
-                    </button>
+                        >
+                            <span
+                                className={`inline-flex size-7 shrink-0 items-center justify-center rounded-xl text-[12px] font-semibold ${
+                                    hasSelectedModel
+                                        ? "bg-primary-0 text-primary-300"
+                                        : "bg-white text-gray-500"
+                                }`}
+                            >
+                                {slotIndex + 1}
+                            </span>
+
+                            {hasSelectedModel && (
+                                <div className="relative shrink-0">
+                                    <Image
+                                        className="h-5 w-5 rounded-full object-contain"
+                                        src={getModelLogoSrc(
+                                            modelInfo?.model_id,
+                                            modelInfo?.provider
+                                        )}
+                                        width={20}
+                                        height={20}
+                                        alt={modelInfo?.display_name || "Модель"}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="min-w-0 flex-1 text-left leading-none">
+                                <div
+                                    className={`truncate text-[13px] font-semibold leading-4 ${
+                                        hasSelectedModel
+                                            ? "text-gray-900"
+                                            : "text-gray-500"
+                                    }`}
+                                >
+                                    {modelInfo?.display_name ||
+                                        modelId ||
+                                        "Выбрать модель"}
+                                </div>
+                                <div className="truncate text-[10px] leading-[12px] text-gray-500">
+                                    {modelInfo?.provider || emptyProvider}
+                                </div>
+                            </div>
+
+                            <Icon
+                                className={`shrink-0 fill-gray-500 transition-transform ${
+                                    openSlotIndex === slotIndex ? "rotate-180" : ""
+                                }`}
+                                name="chevron"
+                            />
+                        </button>
 
                     {openSlotIndex === slotIndex && (
                         <div className="absolute left-0 top-[calc(100%+10px)] z-30 max-h-[420px] w-[320px] overflow-auto rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
@@ -685,8 +710,9 @@ const ChatVersions = () => {
                             )}
                         </div>
                     )}
-                </div>
-            ))}
+                    </div>
+                );
+            })}
         </div>
     );
 };

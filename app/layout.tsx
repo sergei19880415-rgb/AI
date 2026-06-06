@@ -9,7 +9,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-    title: "MAX AI",
+    title: "OmniAI",
     description: "AI-агрегатор с несколькими моделями в одном интерфейсе",
 };
 
@@ -26,24 +26,24 @@ export default function RootLayout({
             <head>
                 <meta
                     name="description"
-                    content="MAX AI — AI-агрегатор с несколькими моделями в одном интерфейсе"
+                    content="OmniAI — AI-агрегатор с несколькими моделями в одном интерфейсе"
                 />
-                <meta name="product-name" content="MAX AI" />
+                <meta name="product-name" content="OmniAI" />
 
                 <meta name="twitter:card" content="summary" />
-                <meta name="twitter:title" content="MAX AI" />
+                <meta name="twitter:title" content="OmniAI" />
                 <meta
                     name="twitter:description"
                     content="AI-агрегатор с несколькими моделями в одном интерфейсе"
                 />
 
-                <meta property="og:title" content="MAX AI" />
+                <meta property="og:title" content="OmniAI" />
                 <meta property="og:type" content="website" />
                 <meta
                     property="og:description"
                     content="AI-агрегатор с несколькими моделями в одном интерфейсе"
                 />
-                <meta property="og:site_name" content="MAX AI" />
+                <meta property="og:site_name" content="OmniAI" />
             </head>
             <body
                 className={`${geistSans.variable} bg-gray-25 font-geist-sans text-body-md text-gray-800 antialiased max-md:bg-gray-0`}

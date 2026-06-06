@@ -101,7 +101,7 @@ const Sidebar = ({ visible, onClose, isCollapsed, onToggle }: Props) => {
                         alt="Logo"
                     />
                     {!isCollapsed && (
-                        <span className="font-semibold">MAX AI</span>
+                        <span className="font-semibold">OmniAI</span>
                     )}
                 </Link>
 
