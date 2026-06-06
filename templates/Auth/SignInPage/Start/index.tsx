@@ -42,6 +42,16 @@ type GoogleCredentialResponse = {
     select_by?: string;
 };
 
+type TelegramAuthUser = {
+    id: number | string;
+    first_name?: string;
+    last_name?: string;
+    username?: string;
+    photo_url?: string;
+    auth_date: number | string;
+    hash: string;
+};
+
 type LoginResponse = {
     success?: boolean;
     emailVerificationRequired?: boolean;
@@ -60,6 +70,9 @@ type LoginResponse = {
 
 const LOGIN_WEBHOOK_URL = "https://tgdomen.ru/webhook/login-auth";
 const GOOGLE_AUTH_WEBHOOK_URL = "https://tgdomen.ru/webhook/google-auth";
+const TELEGRAM_AUTH_WEBHOOK_URL = "https://tgdomen.ru/webhook/tg-auth";
+const TELEGRAM_BOT_USERNAME = "OmniAI_Login_Bot";
+const TELEGRAM_WIDGET_SCRIPT_SRC = "https://telegram.org/js/telegram-widget.js";
 const GOOGLE_CLIENT_ID =
     "760225057684-bbmmn7vsri3ofgu9pbakj84aqvjtv04b.apps.googleusercontent.com";
 const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
@@ -114,6 +127,7 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
 
 declare global {
     interface Window {
+        onTelegramAuth?: (user: TelegramAuthUser) => void;
         google?: {
             accounts: {
                 id: {
@@ -184,6 +198,11 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     >(() => undefined);
     const googleButtonContainerRef = useRef<HTMLDivElement | null>(null);
     const googleButtonWrapperRef = useRef<HTMLDivElement | null>(null);
+    const telegramButtonWrapperRef = useRef<HTMLDivElement | null>(null);
+    const telegramWidgetContainerRef = useRef<HTMLDivElement | null>(null);
+    const telegramAuthHandlerRef = useRef<(user: TelegramAuthUser) => void>(
+        () => undefined
+    );
     const isGoogleInitializedRef = useRef(false);
 
     const [email, setEmail] = useState("");
@@ -192,6 +211,10 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     const [errorText, setErrorText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const [isTelegramLoading, setIsTelegramLoading] = useState(false);
+    const [isTelegramWidgetReady, setIsTelegramWidgetReady] = useState(false);
+    const [isTelegramDomainHintVisible, setIsTelegramDomainHintVisible] =
+        useState(false);
     const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
     const [successText, setSuccessText] = useState("");
 
@@ -263,7 +286,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             !cleanEmail ||
             !cleanPassword ||
             isLoading ||
-            isGoogleLoading
+            isGoogleLoading ||
+            isTelegramLoading
         ) {
             return;
         }
@@ -333,7 +357,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             if (
                 !credential ||
                 isLoading ||
-                isGoogleLoading
+                isGoogleLoading ||
+                isTelegramLoading
             ) {
                 setErrorText("Не удалось войти через Google");
                 return;
@@ -394,6 +419,78 @@ const Start = ({ onRequireEmailVerification }: Props) => {
             applyLoginState,
             isGoogleLoading,
             isLoading,
+            isTelegramLoading,
+            remember,
+        ]
+    );
+
+    const handleTelegramAuth = useCallback(
+        async (telegramUser: TelegramAuthUser) => {
+            if (
+                !telegramUser?.id ||
+                !telegramUser.auth_date ||
+                !telegramUser.hash ||
+                isLoading ||
+                isGoogleLoading ||
+                isTelegramLoading
+            ) {
+                setErrorText("Не удалось войти через Telegram");
+                return;
+            }
+
+            setIsTelegramLoading(true);
+            setErrorText("");
+            setSuccessText("");
+
+            try {
+                const response = await fetch(TELEGRAM_AUTH_WEBHOOK_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        auth_data: telegramUser,
+                    }),
+                });
+
+                const raw = await response.text();
+
+                let parsed: unknown = null;
+
+                try {
+                    parsed = JSON.parse(raw);
+                } catch {
+                    setErrorText("Не удалось войти через Telegram");
+                    setIsTelegramLoading(false);
+                    return;
+                }
+
+                const data = toLoginResponse(parsed);
+
+                if (!response.ok || !data?.success) {
+                    setErrorText("Не удалось войти через Telegram");
+                    return;
+                }
+
+                const telegramEmail = normalizeUserEmail(data.email || "", "");
+
+                if (!telegramEmail) {
+                    setErrorText("Не удалось войти через Telegram");
+                    return;
+                }
+
+                applyLoginState(data, telegramEmail, remember);
+            } catch {
+                setErrorText("Не удалось войти через Telegram");
+            } finally {
+                setIsTelegramLoading(false);
+            }
+        },
+        [
+            applyLoginState,
+            isGoogleLoading,
+            isLoading,
+            isTelegramLoading,
             remember,
         ]
     );
@@ -401,6 +498,58 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     useEffect(() => {
         googleCredentialHandlerRef.current = handleGoogleCredential;
     }, [handleGoogleCredential]);
+
+    useEffect(() => {
+        telegramAuthHandlerRef.current = handleTelegramAuth;
+    }, [handleTelegramAuth]);
+
+    useEffect(() => {
+        window.onTelegramAuth = (user) => {
+            telegramAuthHandlerRef.current(user);
+        };
+
+        return () => {
+            if (window.onTelegramAuth) {
+                delete window.onTelegramAuth;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const container = telegramWidgetContainerRef.current;
+
+        if (!container) return;
+
+        container.innerHTML = "";
+        setIsTelegramWidgetReady(false);
+
+        const script = document.createElement("script");
+        script.src = TELEGRAM_WIDGET_SCRIPT_SRC;
+        script.async = true;
+        script.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
+        script.setAttribute("data-size", "large");
+        script.setAttribute("data-radius", "14");
+        script.setAttribute("data-onauth", "onTelegramAuth(user)");
+        script.setAttribute("data-request-access", "write");
+        script.onload = () => setIsTelegramWidgetReady(true);
+        script.onerror = () => setErrorText("Не удалось войти через Telegram");
+
+        container.appendChild(script);
+
+        if (
+            window.location.hostname &&
+            window.location.hostname !== "omniai.ru" &&
+            window.location.hostname !== "www.omniai.ru"
+        ) {
+            setIsTelegramDomainHintVisible(true);
+        }
+
+        return () => {
+            script.onload = null;
+            script.onerror = null;
+            container.innerHTML = "";
+        };
+    }, []);
 
     useEffect(() => {
         if (
@@ -480,12 +629,12 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 <div className="space-y-3">
                     <div
                         className={`group relative grid h-14 w-full grid-cols-[1.25rem_1fr_1.25rem] items-center overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 text-body-md font-semibold text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] active:translate-y-0 active:scale-[0.99] ${
-                            isLoading || isGoogleLoading
+                            isLoading || isGoogleLoading || isTelegramLoading
                                 ? "pointer-events-none cursor-wait opacity-70"
                                 : "cursor-pointer"
                         }`}
                         role="button"
-                        aria-disabled={isLoading || isGoogleLoading}
+                        aria-disabled={isLoading || isGoogleLoading || isTelegramLoading}
                         ref={googleButtonWrapperRef}
                     >
                         <Image
@@ -513,10 +662,16 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                     )}
 
                     <div
-                        className="grid h-14 w-full grid-cols-[1.25rem_1fr_1.25rem] items-center rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] opacity-80"
-                        aria-disabled="true"
+                        className={`group relative grid h-14 w-full grid-cols-[1.25rem_1fr_1.25rem] items-center overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] active:translate-y-0 active:scale-[0.99] ${
+                            isLoading || isGoogleLoading || isTelegramLoading
+                                ? "pointer-events-none cursor-wait opacity-70"
+                                : "cursor-pointer"
+                        }`}
+                        role="button"
+                        aria-disabled={isLoading || isGoogleLoading || isTelegramLoading}
+                        ref={telegramButtonWrapperRef}
                     >
-                        <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#229ED9] text-gray-0">
+                        <span className="pointer-events-none inline-flex size-5 items-center justify-center rounded-full bg-[#229ED9] text-gray-0">
                             <svg
                                 className="size-3.5"
                                 viewBox="0 0 24 24"
@@ -529,16 +684,31 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                                 />
                             </svg>
                         </span>
-                        <span className="text-center leading-tight">
+                        <span className="pointer-events-none text-center leading-tight">
                             <span className="block text-body-md font-semibold">
-                                Войти через Telegram
+                                {isTelegramLoading
+                                    ? "Входим через Telegram..."
+                                    : "Войти через Telegram"}
                             </span>
-                            <span className="block text-xs font-medium text-gray-400">
-                                Скоро будет доступно
-                            </span>
+                            {!isTelegramWidgetReady && !isTelegramLoading && (
+                                <span className="block text-xs font-medium text-gray-400">
+                                    Загружаем Telegram...
+                                </span>
+                            )}
                         </span>
                         <span aria-hidden="true" />
+                        <div
+                            className="absolute inset-0 z-10 h-full w-full opacity-[0.01] [&>*]:!h-full [&>*]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full"
+                            ref={telegramWidgetContainerRef}
+                            aria-label="Войти через Telegram"
+                        />
                     </div>
+
+                    {isTelegramDomainHintVisible && (
+                        <div className="rounded-xl bg-primary-0 px-3 py-2 text-center text-body-sm text-primary-300">
+                            Telegram-вход доступен только на основном домене omniai.ru
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -605,6 +775,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                 disabled={
                     isLoading ||
                     isGoogleLoading ||
+                    isTelegramLoading ||
                     !email.trim() ||
                     !password.trim()
                 }
