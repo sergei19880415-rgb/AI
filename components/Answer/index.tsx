@@ -20,6 +20,14 @@ type MarkdownBlock =
     | { type: "paragraph"; lines: string[] }
     | { type: "list"; items: string[] };
 
+const markdownHeadingPattern = /^#{1,4}\s+(.+)$/;
+
+const parseMarkdownHeading = (line: string) => {
+    const match = markdownHeadingPattern.exec(line);
+
+    return match ? match[1].trim() : null;
+};
+
 const parseInlineMarkdown = (text: string): MarkdownInlineNode[] => {
     const nodes: MarkdownInlineNode[] = [];
     const boldPattern = /\*\*([^*]+?)\*\*/g;
@@ -69,8 +77,10 @@ const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
             continue;
         }
 
-        if (trimmedLine.startsWith("### ")) {
-            blocks.push({ type: "heading", text: trimmedLine.slice(4).trim() });
+        const headingText = parseMarkdownHeading(trimmedLine);
+
+        if (headingText) {
+            blocks.push({ type: "heading", text: headingText });
             index += 1;
             continue;
         }
@@ -95,7 +105,7 @@ const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
 
             if (
                 !currentTrimmedLine ||
-                currentTrimmedLine.startsWith("### ") ||
+                parseMarkdownHeading(currentTrimmedLine) ||
                 currentTrimmedLine.startsWith("- ")
             ) {
                 break;
