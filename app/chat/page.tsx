@@ -13,8 +13,9 @@ export default function Page() {
 
     useEffect(() => {
         const cleanEmail = getStoredUserEmail("");
+        const sessionToken = localStorage.getItem("ai_session_token")?.trim() || "";
 
-        if (!cleanEmail) {
+        if (!cleanEmail || !sessionToken) {
             router.replace("/auth/sign-in");
             setIsCheckingAuth(false);
             return;
