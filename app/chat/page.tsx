@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChatPage from "@/templates/ChatPage";
+import CloudChatHistorySync from "@/components/CloudChatHistorySync";
 import { getStoredUserEmail } from "@/lib/userStorage";
 
 export default function Page() {
@@ -27,5 +28,10 @@ export default function Page() {
         return null;
     }
 
-    return <ChatPage />;
+    return (
+        <>
+            <CloudChatHistorySync />
+            <ChatPage />
+        </>
+    );
 }
