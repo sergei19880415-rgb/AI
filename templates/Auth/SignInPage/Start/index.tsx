@@ -127,7 +127,7 @@ const toLoginResponse = (value: unknown): LoginResponse | null => {
 
 declare global {
     interface Window {
-        onTelegramAuth?: (user: TelegramAuthUser) => void;
+        onTelegramAuth?: (user: TelegramAuthUser) => Promise<void> | void;
         google?: {
             accounts: {
                 id: {
@@ -198,9 +198,10 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     >(() => undefined);
     const googleButtonContainerRef = useRef<HTMLDivElement | null>(null);
     const googleButtonWrapperRef = useRef<HTMLDivElement | null>(null);
-    const telegramButtonWrapperRef = useRef<HTMLDivElement | null>(null);
-    const telegramWidgetContainerRef = useRef<HTMLDivElement | null>(null);
-    const telegramAuthHandlerRef = useRef<(user: TelegramAuthUser) => void>(
+    const telegramWidgetRef = useRef<HTMLDivElement | null>(null);
+    const telegramAuthHandlerRef = useRef<
+        (user: TelegramAuthUser) => Promise<void> | void
+    >(
         () => undefined
     );
     const isGoogleInitializedRef = useRef(false);
@@ -504,8 +505,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     }, [handleTelegramAuth]);
 
     useEffect(() => {
-        window.onTelegramAuth = (user) => {
-            telegramAuthHandlerRef.current(user);
+        window.onTelegramAuth = async (user) => {
+            await telegramAuthHandlerRef.current(user);
         };
 
         return () => {
@@ -516,7 +517,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
     }, []);
 
     useEffect(() => {
-        const container = telegramWidgetContainerRef.current;
+        const container = telegramWidgetRef.current;
 
         if (!container) return;
 
@@ -669,7 +670,6 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                         }`}
                         role="button"
                         aria-disabled={isLoading || isGoogleLoading || isTelegramLoading}
-                        ref={telegramButtonWrapperRef}
                     >
                         <span className="pointer-events-none inline-flex size-5 items-center justify-center rounded-full bg-[#229ED9] text-gray-0">
                             <svg
@@ -698,8 +698,12 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                         </span>
                         <span aria-hidden="true" />
                         <div
-                            className="absolute inset-0 z-10 h-full w-full opacity-[0.01] [&>*]:!h-full [&>*]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full"
-                            ref={telegramWidgetContainerRef}
+                            className={`absolute inset-0 z-20 flex h-full w-full items-center justify-center [&>*]:!h-full [&>*]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_iframe]:!opacity-100 ${
+                                isTelegramWidgetReady
+                                    ? "pointer-events-auto bg-gray-0"
+                                    : "pointer-events-none bg-transparent"
+                            }`}
+                            ref={telegramWidgetRef}
                             aria-label="Войти через Telegram"
                         />
                     </div>
