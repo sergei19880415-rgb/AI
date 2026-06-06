@@ -13,6 +13,160 @@ type Props = {
     children: React.ReactNode;
 };
 
+type MarkdownInlineNode = string | { type: "strong"; text: string };
+
+type MarkdownBlock =
+    | { type: "heading"; text: string }
+    | { type: "paragraph"; lines: string[] }
+    | { type: "list"; items: string[] };
+
+const parseInlineMarkdown = (text: string): MarkdownInlineNode[] => {
+    const nodes: MarkdownInlineNode[] = [];
+    const boldPattern = /\*\*([^*]+?)\*\*/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = boldPattern.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            nodes.push(text.slice(lastIndex, match.index));
+        }
+
+        nodes.push({ type: "strong", text: match[1] });
+        lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < text.length) {
+        nodes.push(text.slice(lastIndex));
+    }
+
+    return nodes.length ? nodes : [text];
+};
+
+const renderInlineMarkdown = (text: string, keyPrefix: string) =>
+    parseInlineMarkdown(text).map((node, index) => {
+        if (typeof node === "string") {
+            return <span key={`${keyPrefix}-text-${index}`}>{node}</span>;
+        }
+
+        return (
+            <strong className="font-bold" key={`${keyPrefix}-strong-${index}`}>
+                {node.text}
+            </strong>
+        );
+    });
+
+const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
+    const blocks: MarkdownBlock[] = [];
+    const lines = content.replace(/\r\n?/g, "\n").split("\n");
+    let index = 0;
+
+    while (index < lines.length) {
+        const line = lines[index];
+        const trimmedLine = line.trim();
+
+        if (!trimmedLine) {
+            index += 1;
+            continue;
+        }
+
+        if (trimmedLine.startsWith("### ")) {
+            blocks.push({ type: "heading", text: trimmedLine.slice(4).trim() });
+            index += 1;
+            continue;
+        }
+
+        if (trimmedLine.startsWith("- ")) {
+            const items: string[] = [];
+
+            while (index < lines.length && lines[index].trim().startsWith("- ")) {
+                items.push(lines[index].trim().slice(2).trim());
+                index += 1;
+            }
+
+            blocks.push({ type: "list", items });
+            continue;
+        }
+
+        const paragraphLines: string[] = [];
+
+        while (index < lines.length) {
+            const currentLine = lines[index];
+            const currentTrimmedLine = currentLine.trim();
+
+            if (
+                !currentTrimmedLine ||
+                currentTrimmedLine.startsWith("### ") ||
+                currentTrimmedLine.startsWith("- ")
+            ) {
+                break;
+            }
+
+            paragraphLines.push(currentTrimmedLine);
+            index += 1;
+        }
+
+        blocks.push({ type: "paragraph", lines: paragraphLines });
+    }
+
+    return blocks;
+};
+
+const AssistantMarkdown = ({ content }: { content: string }) => {
+    const blocks = parseMarkdownBlocks(content);
+
+    return (
+        <div className="space-y-2 leading-[1.65]">
+            {blocks.map((block, blockIndex) => {
+                if (block.type === "heading") {
+                    return (
+                        <h3
+                            className="mt-3 mb-1.5 text-[15px] font-bold leading-[1.45] text-slate-800 first:mt-0"
+                            key={`heading-${blockIndex}`}
+                        >
+                            {renderInlineMarkdown(
+                                block.text,
+                                `heading-${blockIndex}`
+                            )}
+                        </h3>
+                    );
+                }
+
+                if (block.type === "list") {
+                    return (
+                        <ul
+                            className="mb-2 list-disc space-y-1 pl-5 last:mb-0"
+                            key={`list-${blockIndex}`}
+                        >
+                            {block.items.map((item, itemIndex) => (
+                                <li key={`list-${blockIndex}-item-${itemIndex}`}>
+                                    {renderInlineMarkdown(
+                                        item,
+                                        `list-${blockIndex}-item-${itemIndex}`
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    );
+                }
+
+                return (
+                    <p className="mb-2 last:mb-0" key={`paragraph-${blockIndex}`}>
+                        {block.lines.map((line, lineIndex) => (
+                            <span key={`paragraph-${blockIndex}-line-${lineIndex}`}>
+                                {lineIndex > 0 && <br />}
+                                {renderInlineMarkdown(
+                                    line,
+                                    `paragraph-${blockIndex}-line-${lineIndex}`
+                                )}
+                            </span>
+                        ))}
+                    </p>
+                );
+            })}
+        </div>
+    );
+};
+
 const getModelLogoSrc = (
     modelLabel?: string,
     modelId?: string,
@@ -89,18 +243,11 @@ const Answer = ({
 
     const trimmedContentText = contentText.trim();
 
-    const isHtmlImageAnswer =
-        typeof children === "string" &&
-        /^<img[\s\S]*?>$/i.test(trimmedContentText);
-
     const handleCopy = async () => {
         if (!trimmedContentText) return;
 
         try {
-            const plainText = isHtmlImageAnswer
-                ? trimmedContentText.replace(/<[^>]+>/g, " ").trim() || trimmedContentText
-                : trimmedContentText;
-            await navigator.clipboard.writeText(plainText);
+            await navigator.clipboard.writeText(trimmedContentText);
         } catch {
             // ignore
         }
@@ -133,7 +280,7 @@ const Answer = ({
     const showModelLabel =
         !!modelLabel && !trimmedContentText.startsWith("Печатает...");
 
-    const hideActions = !!image || !!video || isHtmlImageAnswer;
+    const hideActions = !!image || !!video;
 
     return (
         <div>
@@ -150,13 +297,9 @@ const Answer = ({
 
                 <div className="min-w-0">
                     {children && (
-                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[14px] leading-[20px] text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
-                            {isHtmlImageAnswer ? (
-                                <div
-                                    dangerouslySetInnerHTML={{
-                                        __html: trimmedContentText,
-                                    }}
-                                />
+                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[14px] text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
+                            {typeof children === "string" ? (
+                                <AssistantMarkdown content={children} />
                             ) : (
                                 children
                             )}
