@@ -6,8 +6,11 @@ import { syncCloudChatsToLocalStorage } from "@/lib/cloudChatHistory";
 const CLOUD_SYNC_INTERVAL_MS = 20000;
 const CLOUD_SYNC_THROTTLE_MS = 15000;
 
-const hasSessionToken = () => {
-    return Boolean(localStorage.getItem("ai_session_token"));
+const hasValidLocalAuth = () => {
+    const token = localStorage.getItem("ai_session_token");
+    const email = localStorage.getItem("ai_user_email");
+
+    return Boolean(token && email);
 };
 
 const CloudChatHistorySync = () => {
@@ -18,7 +21,7 @@ const CloudChatHistorySync = () => {
         force = false,
         source: "startup" | "focus" | "poll" = force ? "startup" : "focus"
     ) => {
-        if (!hasSessionToken()) return;
+        if (!hasValidLocalAuth()) return;
         if (syncInProgressRef.current) return;
 
         const now = Date.now();
@@ -51,7 +54,10 @@ const CloudChatHistorySync = () => {
         };
 
         const handleStorage = (event: StorageEvent) => {
-            if (event.key === "ai_session_token" && event.newValue) {
+            if (
+                (event.key === "ai_session_token" || event.key === "ai_user_email") &&
+                hasValidLocalAuth()
+            ) {
                 void refreshCloudChats(true);
             }
         };
