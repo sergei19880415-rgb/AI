@@ -1978,33 +1978,37 @@ const PanelMessage = () => {
                                     <div className="text-gray-500">Файл загружается...</div>
                                 )}
                                 {!isUploadingFile && attachedFileName && (
-                                    <div className="rounded-lg border border-gray-100 bg-gray-25 p-2.5">
-                                        <div className="flex items-center gap-2 text-gray-700">
-                                            <span className="inline-flex size-5 items-center justify-center rounded bg-gray-100">
+                                    <div className="rounded-2xl border border-gray-100 bg-gray-25/70 p-3 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)]">
+                                        <div className="flex items-center gap-3 text-gray-700">
+                                            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-white">
                                                 <Icon
-                                                    className={`${attachedFilePreviewMeta.iconClassName} size-3.5`}
+                                                    className={`${attachedFilePreviewMeta.iconClassName} size-4`}
                                                     name={attachedFilePreviewMeta.icon}
                                                 />
                                             </span>
-                                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-gray-600">
-                                                {attachedFilePreviewMeta.badge}
-                                            </span>
-                                            <span className="min-w-0 flex-1 truncate">
-                                                {attachedFileName}
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-[13px] font-medium leading-4 text-gray-800">
+                                                    {attachedFileName}
+                                                </span>
+                                                <span className="mt-0.5 block truncate text-[11px] leading-4 text-gray-500">
+                                                    {attachedFilePreviewMeta.badge} · активный файл в чате
+                                                </span>
                                             </span>
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center rounded-md border border-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-white text-0 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                                                 onClick={() => {
                                                     void handleClearFileContext();
                                                 }}
                                                 disabled={isUploadingFile || isSending || isSummarizing}
+                                                aria-label="Убрать файл"
+                                                title="Убрать файл"
                                             >
-                                                Очистить контекст
+                                                <Icon name="close" className="fill-current" />
                                             </button>
                                         </div>
                                         <div className="mt-2 text-[11px] text-gray-500">
-                                            В чате активен только один файл. Новый файл заменит текущий.
+                                            Новый файл заменит текущий.
                                         </div>
                                     </div>
                                 )}
@@ -2023,7 +2027,7 @@ const PanelMessage = () => {
                         <div className="relative text-0">
                             <TextareaAutosize
                                 ref={textareaRef}
-                                className="w-full min-h-[40px] resize-none overflow-y-auto text-body-md leading-5 text-gray-900 outline-none placeholder:text-gray-500"
+                                className="w-full min-h-[40px] resize-none overflow-y-auto text-[15px] leading-6 text-gray-900 outline-none placeholder:text-gray-500"
                                 minRows={2}
                                 maxRows={5}
                                 value={message}
@@ -2069,7 +2073,7 @@ const PanelMessage = () => {
                                 type="button"
                                 onClick={summarizeAnswers}
                                 disabled={isSending || isSummarizing}
-                                className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-100 bg-white px-4 text-[12px] font-medium text-gray-700 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)] transition-colors hover:bg-gray-25 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-100 bg-white px-3 text-[12px] font-medium text-gray-600 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-colors hover:bg-gray-25 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {isSummarizing ? "Саммари..." : "Саммари"}
                             </button>

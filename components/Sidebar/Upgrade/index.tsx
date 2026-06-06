@@ -19,7 +19,7 @@ const Upgrade = ({ isCollapsed }: Props) => {
             ) : (
                 <div className="mx-3 p-4 rounded-xl bg-gray-0 max-2xl:bg-gray-25 max-md:p-0 max-md:bg-transparent">
                     <div className="mb-2 text-body-sm font-semibold">
-                        Попробовать MAX AI Pro
+                        Попробовать OmniAI Pro
                     </div>
                     <div className="mb-2 text-body-xs text-gray-400 [&_span]:text-primary-200">
                         Попробуйте расширенные возможности AI бесплатно

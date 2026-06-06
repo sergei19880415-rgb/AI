@@ -35,7 +35,7 @@ const Success = ({ title, description, isResetPassword }: Props) => {
                 </Button>
             ) : (
                 <Button className="w-full" isPrimary as="link" href="/">
-                    Открыть MAX AI
+                    Открыть OmniAI
                 </Button>
             )}
         </>
