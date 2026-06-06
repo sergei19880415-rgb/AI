@@ -13,8 +13,6 @@ type ChatMessage = {
     id: string;
     role: "user" | "assistant";
     content: string;
-    model_id?: string;
-    model_provider?: string;
 };
 
 type ChatSession = {
@@ -41,20 +39,6 @@ const getChatModelLogoSources = (session: ChatSession): ModelIconSource[] => {
     for (const modelId of selectedModels) {
         const cleanModelId = String(modelId || "").trim();
         if (cleanModelId) sources.push({ modelId: cleanModelId });
-    }
-
-    if (sources.length === 0) {
-        for (const message of session.messages || []) {
-            if (message.role !== "assistant") continue;
-            const cleanModelId = String(message.model_id || "").trim();
-            const cleanProvider = String(message.model_provider || "").trim();
-            if (cleanModelId || cleanProvider) {
-                sources.push({
-                    modelId: cleanModelId,
-                    provider: cleanProvider,
-                });
-            }
-        }
     }
 
     return sources;
@@ -276,9 +260,9 @@ const RecentChats = () => {
         return (
             <div
                 key={item.id}
-                className={`group relative flex items-center gap-1 rounded-lg border transition-colors ${
+                className={`group relative flex items-center gap-1 rounded-xl border transition-colors ${
                     isActive
-                        ? "border-primary-200 bg-primary-0/60"
+                        ? "border-primary-100 bg-primary-0/75 shadow-[0_0.0625rem_0.25rem_rgba(138,68,244,0.08)]"
                         : "border-transparent hover:bg-gray-50"
                 }`}
             >
@@ -298,9 +282,9 @@ const RecentChats = () => {
 
                         <div className="min-w-0 flex-1">
                             <div
-                                className={`flex items-center gap-1.5 truncate text-[14px] leading-5 ${
+                                className={`flex items-center gap-1.5 truncate text-[15px] leading-5 ${
                                     isActive
-                                        ? "font-medium text-gray-900"
+                                        ? "font-semibold text-gray-900"
                                         : "font-medium text-gray-700"
                                 }`}
                             >

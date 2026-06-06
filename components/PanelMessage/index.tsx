@@ -40,7 +40,7 @@ const FILE_UPLOAD_WEBHOOK_URL = "https://tgdomen.ru/webhook/file-upload";
 
 const FALLBACK_MODEL = "gpt-5-nano";
 const SUMMARY_MODEL_ID = "summary";
-const SUMMARY_MODEL_LABEL = "✨ Саммари";
+const SUMMARY_MODEL_LABEL = "Итог";
 const CHAT_DRAFT_STORAGE_KEY = "ai_chat_draft_message";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 const FILE_UNAVAILABLE_MESSAGE =
@@ -2073,9 +2073,15 @@ const PanelMessage = () => {
                                 type="button"
                                 onClick={summarizeAnswers}
                                 disabled={isSending || isSummarizing}
-                                className="inline-flex min-h-20 w-28 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-center text-[13px] font-medium text-gray-700 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-colors hover:border-gray-300 hover:bg-gray-25 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 max-md:min-h-11 max-md:w-full"
+                                className="inline-flex min-h-14 w-28 items-center justify-center gap-1.5 rounded-2xl border border-primary-100 bg-primary-0/70 px-4 text-center text-[13px] font-semibold text-primary-300 shadow-[0_0.0625rem_0.125rem_0_rgba(138,68,244,0.08)] transition-colors hover:border-primary-200 hover:bg-primary-0 hover:text-primary-400 disabled:cursor-not-allowed disabled:opacity-50 max-md:min-h-11 max-md:w-full"
                             >
-                                {isSummarizing ? "Саммари..." : "Саммари"}
+                                {!isSummarizing && (
+                                    <Icon
+                                        className="size-4 fill-primary-300"
+                                        name="chat-ai-fill"
+                                    />
+                                )}
+                                {isSummarizing ? "Итог..." : "Итог"}
                             </button>
                         </div>
                     )}
@@ -2128,7 +2134,7 @@ const PanelMessage = () => {
 
                         <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
                             <div className="whitespace-pre-wrap text-[14px] leading-6 text-gray-800">
-                                {summaryText || "Здесь появится саммари"}
+                                {summaryText || "Здесь появится итог"}
                             </div>
                         </div>
                     </DialogPanel>
