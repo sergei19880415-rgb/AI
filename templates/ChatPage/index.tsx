@@ -255,6 +255,21 @@ const ChatPage = () => {
     const [visibleModelIds, setVisibleModelIds] = useState<string[]>([]);
     const [modelsCatalog, setModelsCatalog] = useState<ModelCatalogItem[]>([]);
     const loadedCloudMessagesRef = useRef(new Set<string>());
+    const messageBottomRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const activeSessionIdRef = useRef("");
+    const pendingInitialScrollRef = useRef(true);
+
+    const setMessageBottomRef = (key: string) => (node: HTMLDivElement | null) => {
+        messageBottomRefs.current[key] = node;
+    };
+
+    const scrollMessagesToBottom = (behavior: ScrollBehavior) => {
+        requestAnimationFrame(() => {
+            Object.values(messageBottomRefs.current).forEach((node) => {
+                node?.scrollIntoView({ behavior, block: "end" });
+            });
+        });
+    };
 
     useEffect(() => {
         migrateUserScopedStorage();
@@ -302,6 +317,12 @@ const ChatPage = () => {
 
         const loadState = () => {
             const session = ensureSession(sessionIdFromUrl);
+
+            if (activeSessionIdRef.current !== session.id) {
+                activeSessionIdRef.current = session.id;
+                pendingInitialScrollRef.current = true;
+            }
+
             applyChatUiMetadata(session);
             applySessionUiSettingsToLegacyKeys(session.id);
             setMessages(session.messages || []);
@@ -416,6 +437,12 @@ const ChatPage = () => {
             ? 1
             : Math.max(modelWindows.length, parallelCount, 1);
 
+    useEffect(() => {
+        const behavior = pendingInitialScrollRef.current ? "auto" : "smooth";
+        scrollMessagesToBottom(behavior);
+        pendingInitialScrollRef.current = false;
+    }, [messages, uiMode, windowCount]);
+
     const getWindowMessages = (modelId: string) => {
         if (!modelId) {
             return messageTurns.flatMap((turn) => [turn.user, ...turn.assistants]);
@@ -529,6 +556,7 @@ const ChatPage = () => {
                             const windowMessages = getWindowMessages(
                                 windowItem.modelId
                             );
+                            const scrollKey = windowItem.modelId || `chat-window-${windowIndex}`;
 
                             return (
                                 <div
@@ -611,6 +639,7 @@ const ChatPage = () => {
                                                     </React.Fragment>
                                                 ))
                                             )}
+                                            <div ref={setMessageBottomRef(scrollKey)} />
                                         </div>
                                     </div>
                                 </div>
@@ -691,6 +720,7 @@ const ChatPage = () => {
                                             );
                                         })
                                     )}
+                                    <div ref={setMessageBottomRef("image-window")} />
                                 </div>
                             </div>
                         </div>
