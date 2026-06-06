@@ -78,6 +78,21 @@ const GOOGLE_CLIENT_ID =
 const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 
+const TelegramPlaneIcon = () => (
+    <svg
+        className="size-[22px]"
+        viewBox="0 0 24 24"
+        role="img"
+        aria-label="Telegram"
+    >
+        <circle cx="12" cy="12" r="11" fill="#229ED9" />
+        <path
+            d="M17.95 7.1 15.9 17.2c-.15.72-.58.9-1.17.56l-3.23-2.45-1.56 1.54c-.17.17-.32.32-.65.32l.23-3.4 6.18-5.73c.27-.24-.06-.37-.41-.13l-7.64 4.94-3.29-1.06c-.71-.23-.73-.73.15-1.08l12.86-5.08c.6-.23 1.12.15.58 1.47Z"
+            fill="#fff"
+        />
+    </svg>
+);
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 };
@@ -629,7 +644,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
 
                 <div className="space-y-3">
                     <div
-                        className={`group relative grid h-14 w-full grid-cols-[1.25rem_1fr_1.25rem] items-center overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 text-body-md font-semibold text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] active:translate-y-0 active:scale-[0.99] ${
+                        className={`group relative grid h-14 w-full grid-cols-[1.375rem_1fr_1.375rem] items-center overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 text-body-md font-semibold text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] active:translate-y-0 active:scale-[0.99] ${
                             isLoading || isGoogleLoading || isTelegramLoading
                                 ? "pointer-events-none cursor-wait opacity-70"
                                 : "cursor-pointer"
@@ -639,10 +654,10 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                         ref={googleButtonWrapperRef}
                     >
                         <Image
-                            className="pointer-events-none size-5 opacity-100"
+                            className="pointer-events-none size-[22px] opacity-100"
                             src="/images/google.svg"
-                            width={20}
-                            height={20}
+                            width={22}
+                            height={22}
                             alt=""
                         />
                         <span className="pointer-events-none text-center">
@@ -663,15 +678,15 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                     )}
 
                     <div
-                        className={`rounded-[0.875rem] border border-gray-100 bg-gray-0 px-4 py-2.5 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] ${
+                        className={`rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 py-2.5 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] active:translate-y-0 active:scale-[0.99] ${
                             isLoading || isGoogleLoading || isTelegramLoading
                                 ? "opacity-70"
                                 : ""
                         }`}
                     >
-                        <div className="grid min-h-9 grid-cols-[1.25rem_1fr_1.25rem] items-center gap-2">
-                            <span className="flex size-5 items-center justify-center rounded-full bg-[#229ED9] text-[12px] font-bold leading-none text-white">
-                                T
+                        <div className="grid min-h-9 grid-cols-[1.375rem_1fr_1.375rem] items-center gap-2">
+                            <span className="flex size-[22px] items-center justify-center">
+                                <TelegramPlaneIcon />
                             </span>
                             <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-xl">
                                 <div

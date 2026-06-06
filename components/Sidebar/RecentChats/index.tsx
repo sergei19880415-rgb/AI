@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
+import ModelLogoStack from "@/components/ModelLogos";
 import TextInputDialog from "@/components/TextInputDialog";
 import { deleteChatEverywhere } from "@/lib/deleteChatEverywhere";
 import { getUserScopedKey } from "@/lib/userStorage";
@@ -31,22 +32,7 @@ type ModelIconSource = {
     provider?: string;
 };
 
-const getModelIcon = ({ modelId, provider }: ModelIconSource) => {
-    const id = String(modelId || "").trim().toLowerCase();
-    const prov = String(provider || "").trim().toLowerCase();
-    const combined = `${prov} ${id}`;
-
-    if (!combined.trim()) return "";
-    if (combined.includes("gemini") || combined.includes("google")) return "✨";
-    if (combined.includes("claude") || combined.includes("anthropic")) return "◈";
-    if (combined.includes("grok") || combined.includes("xai") || combined.includes("x.ai")) return "✕";
-    if (combined.includes("perplexity") || combined.includes("sonar")) return "◆";
-    if (combined.includes("openai") || combined.includes("gpt") || combined.includes("o1") || combined.includes("o3") || combined.includes("o4")) return "◌";
-
-    return "◇";
-};
-
-const getChatModelIconItems = (session: ChatSession) => {
+const getChatModelLogoSources = (session: ChatSession): ModelIconSource[] => {
     const sources: ModelIconSource[] = [];
     const selectedModels = Array.isArray(session.selected_models)
         ? session.selected_models
@@ -61,28 +47,17 @@ const getChatModelIconItems = (session: ChatSession) => {
         for (const message of session.messages || []) {
             if (message.role !== "assistant") continue;
             const cleanModelId = String(message.model_id || "").trim();
-            if (cleanModelId) {
+            const cleanProvider = String(message.model_provider || "").trim();
+            if (cleanModelId || cleanProvider) {
                 sources.push({
                     modelId: cleanModelId,
-                    provider: message.model_provider,
+                    provider: cleanProvider,
                 });
             }
         }
     }
 
-    const uniqueIcons: string[] = [];
-
-    for (const source of sources) {
-        const icon = getModelIcon(source);
-        if (icon && !uniqueIcons.includes(icon)) {
-            uniqueIcons.push(icon);
-        }
-    }
-
-    return {
-        icons: uniqueIcons.slice(0, 3),
-        extraCount: Math.max(uniqueIcons.length - 3, 0),
-    };
+    return sources;
 };
 
 const getSessionsKey = () => {
@@ -296,7 +271,7 @@ const RecentChats = () => {
 
     const renderChatRow = (item: ChatSession) => {
         const isActive = pathname.startsWith("/chat") && item.id === activeId;
-        const modelIconItems = getChatModelIconItems(item);
+        const modelLogoSources = getChatModelLogoSources(item);
 
         return (
             <div
@@ -323,24 +298,13 @@ const RecentChats = () => {
 
                         <div className="min-w-0 flex-1">
                             <div
-                                className={`flex items-center gap-1 truncate text-[13px] ${
+                                className={`flex items-center gap-1.5 truncate text-[14px] leading-5 ${
                                     isActive
                                         ? "font-medium text-gray-900"
-                                        : "text-gray-700"
+                                        : "font-medium text-gray-700"
                                 }`}
                             >
-                                {modelIconItems.icons.length > 0 && (
-                                    <span className="mr-0.5 inline-flex shrink-0 items-center gap-0.5 text-[11px] leading-none">
-                                        {modelIconItems.icons.map((icon, index) => (
-                                            <span key={`${icon}-${index}`}>{icon}</span>
-                                        ))}
-                                        {modelIconItems.extraCount > 0 && (
-                                            <span className="ml-0.5 rounded-full bg-gray-100 px-1 text-[9px] font-medium leading-4 text-gray-500">
-                                                +{modelIconItems.extraCount}
-                                            </span>
-                                        )}
-                                    </span>
-                                )}
+                                <ModelLogoStack sources={modelLogoSources} />
                                 <span className="min-w-0 truncate">
                                     {item.title || "Новый чат"}
                                 </span>

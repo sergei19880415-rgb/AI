@@ -2068,12 +2068,12 @@ const PanelMessage = () => {
                     </div>
 
                     {activeMode !== "image" && (
-                        <div className="shrink-0 self-end pb-1 max-md:pb-0">
+                        <div className="flex shrink-0 self-stretch max-md:self-auto">
                             <button
                                 type="button"
                                 onClick={summarizeAnswers}
                                 disabled={isSending || isSummarizing}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-100 bg-white px-3 text-[12px] font-medium text-gray-600 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-colors hover:bg-gray-25 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex min-h-20 w-28 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-center text-[13px] font-medium text-gray-700 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-colors hover:border-gray-300 hover:bg-gray-25 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 max-md:min-h-11 max-md:w-full"
                             >
                                 {isSummarizing ? "Саммари..." : "Саммари"}
                             </button>
