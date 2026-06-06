@@ -7,8 +7,8 @@ const CLOUD_SYNC_INTERVAL_MS = 20000;
 const CLOUD_SYNC_THROTTLE_MS = 15000;
 
 const hasValidLocalAuth = () => {
-    const token = localStorage.getItem("ai_session_token");
-    const email = localStorage.getItem("ai_user_email");
+    const token = localStorage.getItem("ai_session_token")?.trim() || "";
+    const email = localStorage.getItem("ai_user_email")?.trim() || "";
 
     return Boolean(token && email);
 };
@@ -41,6 +41,8 @@ const CloudChatHistorySync = () => {
     }, []);
 
     useEffect(() => {
+        if (!hasValidLocalAuth()) return;
+
         void refreshCloudChats(true);
 
         const handleFocus = () => {
