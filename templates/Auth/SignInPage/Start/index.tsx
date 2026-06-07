@@ -80,7 +80,7 @@ const RETURN_AFTER_LOGIN_STORAGE_KEY = "ai_return_after_login";
 
 const TelegramPlaneIcon = () => (
     <svg
-        className="size-[22px]"
+        className="size-6"
         viewBox="0 0 24 24"
         role="img"
         aria-label="Telegram"
@@ -644,7 +644,7 @@ const Start = ({ onRequireEmailVerification }: Props) => {
 
                 <div className="space-y-3">
                     <div
-                        className={`group relative grid h-14 w-full grid-cols-[1.375rem_1fr_1.375rem] items-center overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 text-body-md font-semibold text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] active:translate-y-0 active:scale-[0.99] ${
+                        className={`group relative grid h-14 w-full grid-cols-[1.5rem_1fr_1.5rem] items-center overflow-hidden rounded-[0.875rem] border border-gray-100 bg-gray-0 px-5 text-body-md font-semibold text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)] transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:bg-gray-25 hover:shadow-[0_0.375rem_1rem_rgba(13,13,18,0.06)] active:translate-y-0 active:scale-[0.99] ${
                             isLoading || isGoogleLoading || isTelegramLoading
                                 ? "pointer-events-none cursor-wait opacity-70"
                                 : "cursor-pointer"
@@ -654,10 +654,10 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                         ref={googleButtonWrapperRef}
                     >
                         <Image
-                            className="pointer-events-none size-[22px] opacity-100"
+                            className="pointer-events-none size-6 opacity-100"
                             src="/images/google.svg"
-                            width={22}
-                            height={22}
+                            width={24}
+                            height={24}
                             alt=""
                         />
                         <span className="pointer-events-none text-center">
@@ -684,8 +684,8 @@ const Start = ({ onRequireEmailVerification }: Props) => {
                                 : ""
                         }`}
                     >
-                        <div className="grid min-h-9 grid-cols-[1.375rem_1fr_1.375rem] items-center gap-2">
-                            <span className="flex size-[22px] items-center justify-center">
+                        <div className="grid min-h-9 grid-cols-[1.5rem_1fr_1.5rem] items-center gap-2">
+                            <span className="flex size-6 items-center justify-center">
                                 <TelegramPlaneIcon />
                             </span>
                             <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-xl">

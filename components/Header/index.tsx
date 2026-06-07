@@ -32,7 +32,7 @@ const Header = ({ title, onRenameTitle, onOpenSidebar }: Props) => {
 
                 <button
                     type="button"
-                    className="ml-auto rounded-xl px-3 py-2 text-right font-semibold text-gray-900 transition-colors hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent max-md:px-0"
+                    className="ml-auto max-w-[min(32rem,45vw)] truncate rounded-xl px-4 py-2 text-right text-[16px] font-semibold leading-6 text-gray-900 transition-colors hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent max-md:max-w-[45vw] max-md:px-2 max-md:text-[15px]"
                     onClick={() => onRenameTitle && setRenameOpen(true)}
                     title={onRenameTitle ? "Переименовать чат" : undefined}
                     disabled={!onRenameTitle}

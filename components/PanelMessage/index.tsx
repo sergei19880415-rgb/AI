@@ -1871,7 +1871,10 @@ const PanelMessage = () => {
                         />
                     </div>
 
-                    <div className="min-w-0 flex-1 rounded-xl border border-gray-100 bg-white px-4 py-2 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)]">
+                    <div
+                        className="min-w-0 flex-1 cursor-text rounded-xl border border-gray-100 bg-white px-4 py-2 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.06)]"
+                        onClick={() => textareaRef.current?.focus()}
+                    >
                         {generateVideo && (
                             <div className="mb-3">
                                 <CloseLine
@@ -2024,11 +2027,11 @@ const PanelMessage = () => {
                             </div>
                         )}
 
-                        <div className="relative text-0">
+                        <div className="relative flex min-h-14 items-center text-0">
                             <TextareaAutosize
                                 ref={textareaRef}
-                                className="w-full min-h-[40px] resize-none overflow-y-auto text-[15px] leading-6 text-gray-900 outline-none placeholder:text-gray-500"
-                                minRows={2}
+                                className="w-full min-h-7 resize-none overflow-y-auto py-1 text-base leading-6 text-gray-900 outline-none placeholder:text-base placeholder:font-medium placeholder:text-gray-500"
+                                minRows={1}
                                 maxRows={5}
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
@@ -2073,7 +2076,7 @@ const PanelMessage = () => {
                                 type="button"
                                 onClick={summarizeAnswers}
                                 disabled={isSending || isSummarizing}
-                                className="inline-flex min-h-14 w-28 items-center justify-center gap-1.5 rounded-2xl border border-primary-100 bg-primary-0/70 px-4 text-center text-[13px] font-semibold text-primary-300 shadow-[0_0.0625rem_0.125rem_0_rgba(138,68,244,0.08)] transition-colors hover:border-primary-200 hover:bg-primary-0 hover:text-primary-400 disabled:cursor-not-allowed disabled:opacity-50 max-md:min-h-11 max-md:w-full"
+                                className="inline-flex min-h-14 w-24 items-center justify-center gap-1.5 rounded-xl border border-[#E5D6FF] bg-[#F8F3FF] px-4 text-center text-[14px] font-semibold text-primary-300 shadow-[0_0.0625rem_0.125rem_0_rgba(138,68,244,0.06)] transition-colors hover:border-[#D6BCFF] hover:bg-[#F1E7FF] hover:text-primary-400 disabled:cursor-not-allowed disabled:opacity-50 max-md:min-h-11 max-md:w-full"
                             >
                                 {!isSummarizing && (
                                     <Icon
