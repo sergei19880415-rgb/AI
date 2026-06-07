@@ -2030,7 +2030,7 @@ const PanelMessage = () => {
                         <div className="relative flex min-h-14 items-center text-0">
                             <TextareaAutosize
                                 ref={textareaRef}
-                                className="w-full min-h-7 resize-none overflow-y-auto py-1 text-base leading-6 text-gray-900 outline-none placeholder:text-base placeholder:font-medium placeholder:text-gray-500"
+                                className="w-full min-h-10 resize-none overflow-y-auto py-2 text-base leading-6 text-gray-900 outline-none placeholder:text-base placeholder:font-medium placeholder:text-gray-500"
                                 minRows={1}
                                 maxRows={5}
                                 value={message}
