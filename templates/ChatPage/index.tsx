@@ -492,7 +492,9 @@ const ChatPage = () => {
         );
     });
 
-    const renderEmptyWorkspace = () => {
+    const isMultiChatEmpty = uiMode === "chat" && windowCount > 1 && messages.length === 0;
+
+    const renderEmptyWorkspace = (isMultiMode = false) => {
         const quickPrompts = [
             "Объясни простыми словами",
             "Сравни варианты",
@@ -506,7 +508,9 @@ const ChatPage = () => {
                     С чего начнём?
                 </div>
                 <div className="mt-2 max-w-80 text-[13px] leading-5 text-gray-500">
-                    Выберите модель, задайте вопрос или прикрепите файл.
+                    {isMultiMode
+                        ? "Выберите модели, задайте вопрос или прикрепите файл."
+                        : "Выберите модель, задайте вопрос или прикрепите файл."}
                 </div>
                 <div className="mt-5 grid w-full max-w-[26rem] grid-cols-1 gap-2 sm:grid-cols-2">
                     {quickPrompts.map((prompt) => (
@@ -547,7 +551,7 @@ const ChatPage = () => {
         >
             <div className="flex min-h-0 flex-1 flex-col">
                 <div
-                    className={`grid h-full min-h-0 auto-rows-fr gap-3 ${getGridClassName(
+                    className={`relative grid h-full min-h-0 auto-rows-fr gap-3 ${getGridClassName(
                         windowCount
                     )}`}
                 >
@@ -595,7 +599,7 @@ const ChatPage = () => {
                                     <div className="min-h-0 flex-1 overflow-auto p-3">
                                         <div className="flex flex-col gap-3">
                                             {windowMessages.length === 0 ? (
-                                                renderEmptyWorkspace()
+                                                !isMultiChatEmpty && renderEmptyWorkspace()
                                             ) : (
                                                 windowMessages.map((item) => (
                                                     <React.Fragment key={item.id}>
@@ -645,6 +649,14 @@ const ChatPage = () => {
                                 </div>
                             );
                         })}
+
+                    {isMultiChatEmpty && (
+                        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 py-6">
+                            <div className="pointer-events-auto w-full max-w-[34rem]">
+                                {renderEmptyWorkspace(true)}
+                            </div>
+                        </div>
+                    )}
 
                     {uiMode === "image" && (
                         <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white">

@@ -84,16 +84,16 @@ const ModelLogoStack = ({ sources, max = 3 }: ModelLogoStackProps) => {
                 return (
                     <Image
                         key={key}
-                        className="size-4 rounded-full border border-gray-100 bg-white object-contain opacity-100 shadow-[0_0.0625rem_0.125rem_rgba(13,13,18,0.08)]"
+                        className="size-[17px] rounded-full border border-gray-100 bg-white object-contain opacity-100 shadow-[0_0.0625rem_0.125rem_rgba(13,13,18,0.08)]"
                         src={logo.src}
-                        width={16}
-                        height={16}
+                        width={17}
+                        height={17}
                         alt={logo.label}
                     />
                 );
             })}
             {extraCount > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-0 px-1 text-[9px] font-semibold leading-none text-primary-300">
+                <span className="ml-0.5 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-primary-0 px-1 text-[9px] font-semibold leading-none text-primary-300">
                     +{extraCount}
                 </span>
             )}

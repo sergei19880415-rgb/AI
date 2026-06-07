@@ -1,19 +1,10 @@
-import { useState } from "react";
 import Link from "next/link";
-import Select from "@/components/Select";
 import Button from "@/components/Button";
 import Icon from "@/components/Icon";
-import { SelectOption } from "@/types/select";
 
 type Props = {
     children: React.ReactNode;
 };
-
-const themeOptions = [
-    { id: 0, name: "EN", flag: "/images/flags/us.png" },
-    { id: 1, name: "ES", flag: "/images/flags/es.png" },
-    { id: 2, name: "DE", flag: "/images/flags/de.png" },
-];
 
 const documents = [
     {
@@ -29,17 +20,16 @@ const documents = [
 ];
 
 const Layout = ({ children }: Props) => {
-    const [theme, setTheme] = useState<SelectOption | null>(themeOptions[0]);
-
     return (
         <div className="flex min-h-[100svh] flex-col bg-gray-25">
             <div className="flex justify-between items-center px-10 py-5 max-xl:p-4">
-                <Select
-                    classButton="h-11 bg-gray-0"
-                    value={theme}
-                    onChange={setTheme}
-                    options={themeOptions}
-                />
+                <div
+                    className="inline-flex h-11 items-center gap-2 rounded-xl border border-gray-100 bg-gray-0 px-4 text-sm font-semibold text-gray-800 shadow-[0_0.0625rem_0.125rem_0_rgba(13,13,18,0.04)]"
+                    aria-label="Текущий язык: русский"
+                >
+                    <span aria-hidden="true">🇷🇺</span>
+                    <span>RU</span>
+                </div>
                 <Button className="ml-auto" isSecondary isMedium>
                     Помощь
                     <Icon name="help-circle" />
