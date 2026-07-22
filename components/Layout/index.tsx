@@ -28,7 +28,7 @@ const Layout = ({
     const [sidebarVisible, setSidebarVisible] = useState(false);
 
     return (
-        <div className="flex gap-2 p-2 max-2xl:block max-md:p-0 max-md:pt-16">
+        <div className="omni-app-shell flex gap-2 p-2 max-2xl:block max-md:p-0">
             <Sidebar
                 isCollapsed={sidebarCollapse}
                 onToggle={() => setSidebarCollapse(!sidebarCollapse)}
@@ -36,7 +36,7 @@ const Layout = ({
                 onClose={() => setSidebarVisible(false)}
             />
 
-            <div className="relative flex h-[calc(100svh-1rem)] min-w-0 flex-1 flex-col rounded-2xl border border-gray-100 bg-gray-0 max-md:h-[calc(100svh-4rem)] max-md:rounded-none max-md:border-none max-md:bg-transparent">
+            <div className="relative flex h-[calc(100svh-1rem)] min-w-0 flex-1 flex-col rounded-2xl border border-gray-100 bg-gray-0 max-md:h-[100svh] max-md:rounded-none max-md:border-none max-md:bg-transparent">
                 <Header
                     title={title}
                     onRenameTitle={onRenameTitle}
