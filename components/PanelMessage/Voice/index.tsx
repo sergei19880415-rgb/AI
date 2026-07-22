@@ -4,9 +4,13 @@ import Modal from "@/components/Modal";
 import Image from "@/components/Image";
 import Slider from "./Slider";
 
+const ENABLE_VOICE_MODE = false;
+
 const Voice = ({}) => {
     const [open, setOpen] = useState(false);
     const [visibleSlider, setVisibleSlider] = useState(false);
+
+    if (!ENABLE_VOICE_MODE) return null;
 
     return (
         <>
