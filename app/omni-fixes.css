@@ -3,13 +3,13 @@
 /* Empty state: keep the explanation short and connected. */
 .omni-layout-content
     .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::before {
-    padding-bottom: 3.9rem;
+    padding-bottom: 4.4rem;
     content: "Сравните ответы нескольких моделей";
 }
 
 .omni-layout-content
     .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::after {
-    top: calc(50% + 0.65rem);
+    top: calc(50% + 0.55rem);
     width: min(29rem, calc(100% - 4rem));
     content: "Задайте вопрос — модели ответят одновременно. «Общий ответ» объединит результаты.";
     white-space: normal;
@@ -72,7 +72,7 @@
     line-height: 1.5rem !important;
 }
 
-/* Image settings: compact summary chips, with the existing selectors in a popover. */
+/* Image settings: compact summary chips, with the existing selectors in a small anchored popover. */
 .omni-image-settings-toggle-host {
     position: relative;
     display: flex;
@@ -119,16 +119,36 @@
 .omni-image-settings-grid.is-open {
     position: absolute !important;
     left: 0;
-    bottom: calc(100% + 0.5rem);
+    bottom: calc(100% + 0.375rem);
     z-index: 50;
     display: grid !important;
-    width: min(30rem, calc(100vw - 2rem));
+    width: min(22rem, calc(100vw - 2rem));
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.625rem !important;
     margin: 0 !important;
-    padding: 0.75rem;
+    padding: 0.625rem;
     border: 1px solid #dfe1e7;
-    border-radius: 0.75rem;
+    border-radius: 0.625rem;
     background: #ffffff;
-    box-shadow: 0 0.75rem 2rem rgba(17, 12, 46, 0.14);
+    box-shadow: 0 0.5rem 1.5rem rgba(17, 12, 46, 0.12);
+}
+
+.omni-image-settings-grid.is-open > div {
+    min-width: 0;
+}
+
+.omni-image-settings-grid.is-open label {
+    margin-bottom: 0.25rem !important;
+    color: #666d80 !important;
+    font-size: 0.6875rem !important;
+    line-height: 1rem !important;
+}
+
+.omni-image-settings-grid.is-open button {
+    height: 2.375rem !important;
+    padding-right: 0.75rem !important;
+    padding-left: 0.75rem !important;
+    font-size: 0.75rem !important;
 }
 
 /* Rename the visible summary action without touching its request logic. */
@@ -210,20 +230,28 @@
     }
 
     .omni-image-settings-grid.is-open {
-        width: calc(100vw - 1rem);
-        grid-template-columns: minmax(0, 1fr) !important;
+        right: 0;
+        left: auto;
+        width: min(20rem, calc(100vw - 1rem));
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 
     .omni-layout-content
         .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::before {
         top: 6rem;
-        padding: 0.9rem 1rem 4.4rem;
+        padding: 0.9rem 1rem 4.8rem;
         transform: translateX(-50%);
     }
 
     .omni-layout-content
         .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::after {
-        top: 8.75rem;
+        top: 8.65rem;
         width: min(20rem, calc(100% - 3rem));
+    }
+}
+
+@media (max-width: 380px) {
+    .omni-image-settings-grid.is-open {
+        grid-template-columns: minmax(0, 1fr) !important;
     }
 }
