@@ -19,6 +19,8 @@ const ChatFeatures = ({
     onGenerateVideo,
     onAttachFile,
 }: Props) => {
+    void onGenerateVideo;
+
     const features = useMemo(
         () => [
             {
@@ -33,14 +35,8 @@ const ChatFeatures = ({
                 icon: "generate-image",
                 onClick: onSelectImage,
             },
-            {
-                key: "video" as ChatFeatureMode,
-                name: "Создать видео",
-                icon: "generate-video",
-                onClick: onGenerateVideo,
-            },
         ],
-        [onGenerateVideo, onSelectChat, onSelectImage]
+        [onSelectChat, onSelectImage]
     );
 
     const menuItems = useMemo(
