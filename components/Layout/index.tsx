@@ -44,7 +44,7 @@ const Layout = ({
                 />
 
                 <div
-                    className={`min-h-0 grow overflow-auto scrollbar-none ${
+                    className={`omni-layout-content min-h-0 grow overflow-auto scrollbar-none ${
                         archived ? "overflow-hidden" : ""
                     } ${classWrapper || ""}`}
                 >
@@ -63,7 +63,11 @@ const Layout = ({
                         </Button>
                     </div>
                 ) : (
-                    !hidePanelMessage && <PanelMessage />
+                    !hidePanelMessage && (
+                        <div className="omni-panel-shell">
+                            <PanelMessage />
+                        </div>
+                    )
                 )}
             </div>
 
