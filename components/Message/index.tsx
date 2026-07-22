@@ -110,8 +110,8 @@ const Message = ({
             )}
 
             <div className="flex items-start justify-end gap-2">
-                <div>
-                    <div className="content rounded-3xl rounded-tr-none bg-[#EAF4FF] px-3 py-2 text-[16px] leading-6 text-slate-700 max-md:rounded-2xl max-md:rounded-tr-none">
+                <div className="min-w-0">
+                    <div className="content whitespace-pre-wrap break-words rounded-3xl rounded-tr-none bg-[#EAF4FF] px-3 py-2 text-[16px] leading-6 text-slate-700 max-md:rounded-2xl max-md:rounded-tr-none">
                         {children}
                     </div>
 
