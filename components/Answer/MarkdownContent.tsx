@@ -18,21 +18,23 @@ const orderedListPattern = /^\d+[.)]\s+(.+)$/;
 const dividerPattern = /^(?:-{3,}|_{3,}|\*{3,})$/;
 const tableDividerCellPattern = /^:?-{3,}:?$/;
 
-const splitTableRow = (line: string) => {
-    const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
-    return trimmed.split("|").map((cell) => cell.trim());
-};
+const splitTableRow = (line: string) =>
+    line
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((cell) => cell.trim());
 
 const isTableDivider = (line: string) => {
     const cells = splitTableRow(line);
     return cells.length > 0 && cells.every((cell) => tableDividerCellPattern.test(cell));
 };
 
-const isTableStart = (lines: string[], index: number) => {
-    if (index + 1 >= lines.length) return false;
-    if (!lines[index].includes("|")) return false;
-    return isTableDivider(lines[index + 1]);
-};
+const isTableStart = (lines: string[], index: number) =>
+    index + 1 < lines.length &&
+    lines[index].includes("|") &&
+    isTableDivider(lines[index + 1]);
 
 const isBlockStart = (lines: string[], index: number) => {
     const trimmed = String(lines[index] || "").trim();
@@ -52,8 +54,7 @@ const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
     let index = 0;
 
     while (index < lines.length) {
-        const line = lines[index];
-        const trimmed = line.trim();
+        const trimmed = lines[index].trim();
 
         if (!trimmed) {
             index += 1;
@@ -108,8 +109,7 @@ const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
             continue;
         }
 
-        const unorderedMatch = unorderedListPattern.exec(trimmed);
-        if (unorderedMatch) {
+        if (unorderedListPattern.test(trimmed)) {
             const items: string[] = [];
 
             while (index < lines.length) {
@@ -123,8 +123,7 @@ const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
             continue;
         }
 
-        const orderedMatch = orderedListPattern.exec(trimmed);
-        if (orderedMatch) {
+        if (orderedListPattern.test(trimmed)) {
             const items: string[] = [];
 
             while (index < lines.length) {
@@ -159,10 +158,9 @@ const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
 
         if (paragraphLines.length > 0) {
             blocks.push({ type: "paragraph", lines: paragraphLines });
-            continue;
+        } else {
+            index += 1;
         }
-
-        index += 1;
     }
 
     return blocks;
@@ -170,22 +168,20 @@ const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
 
 const getSafeHref = (value: string) => {
     const href = value.trim();
-    if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
-    return "";
+    return /^https?:\/\//i.test(href) || /^mailto:/i.test(href) ? href : "";
 };
 
-const inlinePattern =
-    /(`[^`\n]+`|\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|\*\*([^*]+?)\*\*|__([^_]+?)__|~~([^~]+?)~~|\*([^*\n]+?)\*|_([^_\n]+?)_)/g;
+const inlinePatternSource =
+    "(`[^`\\n]+`|\\[([^\\]]+)\\]\\(([^)\\s]+)(?:\\s+\"[^\"]*\")?\\)|\\*\\*([^*]+?)\\*\\*|__([^_]+?)__|~~([^~]+?)~~|\\*([^*\\n]+?)\\*|_([^_\\n]+?)_)";
 
 const renderInlineMarkdown = (text: string, keyPrefix: string): ReactNode[] => {
     const nodes: ReactNode[] = [];
+    const pattern = new RegExp(inlinePatternSource, "g");
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
-    while ((match = inlinePattern.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-            nodes.push(text.slice(lastIndex, match.index));
-        }
+    while ((match = pattern.exec(text)) !== null) {
+        if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
 
         const token = match[0];
         const key = `${keyPrefix}-${match.index}`;
@@ -210,30 +206,28 @@ const renderInlineMarkdown = (text: string, keyPrefix: string): ReactNode[] => {
                         rel="noopener noreferrer"
                         className="font-medium text-primary-300 underline decoration-primary-100 underline-offset-2 hover:text-primary-400"
                     >
-                        {renderInlineMarkdown(match[2], `${key}-link`)}
+                        {match[2]}
                     </a>
                 ) : (
                     <span key={key}>{match[2]}</span>
                 )
             );
         } else if (match[4] || match[5]) {
-            const value = match[4] || match[5];
             nodes.push(
                 <strong key={key} className="font-semibold text-slate-900">
-                    {renderInlineMarkdown(value, `${key}-strong`)}
+                    {match[4] || match[5]}
                 </strong>
             );
         } else if (match[6]) {
             nodes.push(
                 <del key={key} className="text-slate-500">
-                    {renderInlineMarkdown(match[6], `${key}-del`)}
+                    {match[6]}
                 </del>
             );
         } else {
-            const value = match[7] || match[8] || "";
             nodes.push(
                 <em key={key} className="italic">
-                    {renderInlineMarkdown(value, `${key}-em`)}
+                    {match[7] || match[8] || ""}
                 </em>
             );
         }
@@ -241,10 +235,7 @@ const renderInlineMarkdown = (text: string, keyPrefix: string): ReactNode[] => {
         lastIndex = match.index + token.length;
     }
 
-    if (lastIndex < text.length) {
-        nodes.push(text.slice(lastIndex));
-    }
-
+    if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
     return nodes.length > 0 ? nodes : [text];
 };
 
@@ -365,10 +356,7 @@ const MarkdownContent = ({ content }: { content: string }) => {
                                                 key={`${key}-header-${headerIndex}`}
                                                 className="border-b border-slate-200 px-3 py-2 font-semibold"
                                             >
-                                                {renderInlineMarkdown(
-                                                    header,
-                                                    `${key}-header-${headerIndex}`
-                                                )}
+                                                {renderInlineMarkdown(header, `${key}-header-${headerIndex}`)}
                                             </th>
                                         ))}
                                     </tr>
