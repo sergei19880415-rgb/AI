@@ -1,0 +1,67 @@
+name: Test n8n API connection
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-connection:
+    name: Check read-only n8n access
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Check required secrets
+        env:
+          N8N_BASE_URL: ${{ secrets.N8N_BASE_URL }}
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$N8N_BASE_URL" ]; then
+            echo "::error::Secret N8N_BASE_URL is missing"
+            exit 1
+          fi
+
+          if [ -z "$N8N_API_KEY" ]; then
+            echo "::error::Secret N8N_API_KEY is missing"
+            exit 1
+          fi
+
+      - name: Test n8n API without changing workflows
+        env:
+          N8N_BASE_URL: ${{ secrets.N8N_BASE_URL }}
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          BASE_URL="${N8N_BASE_URL%/}"
+          RESPONSE_FILE="$(mktemp)"
+
+          HTTP_STATUS="$(curl \
+            --silent \
+            --show-error \
+            --location \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            --header "Accept: application/json" \
+            --header "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$BASE_URL/api/v1/workflows?limit=1")"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::n8n API returned HTTP $HTTP_STATUS"
+            echo "Check N8N_BASE_URL, API key, HTTPS certificate, and reverse-proxy access to /api/v1/."
+            exit 1
+          fi
+
+          if ! jq -e '.data | type == "array"' "$RESPONSE_FILE" >/dev/null 2>&1; then
+            echo "::error::n8n returned an unexpected response instead of the workflows list"
+            exit 1
+          fi
+
+          echo "Connection successful: GitHub can read the n8n workflows API."
+          echo "No workflows were changed."
