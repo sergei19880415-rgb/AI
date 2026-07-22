@@ -2,8 +2,12 @@ import { useState } from "react";
 import Icon from "@/components/Icon";
 import Image from "@/components/Image";
 
+const ENABLE_AUDIO_RECORDING = false;
+
 const Audio = ({}) => {
     const [isRecording, setIsRecording] = useState(false);
+
+    if (!ENABLE_AUDIO_RECORDING) return null;
 
     return (
         <div className="flex gap-3">
