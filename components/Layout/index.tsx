@@ -4,6 +4,7 @@ import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import PanelMessage from "@/components/PanelMessage";
+import ImageSettingsToggle from "@/components/ImageSettingsToggle";
 import Button from "@/components/Button";
 import Icon from "@/components/Icon";
 
@@ -65,6 +66,7 @@ const Layout = ({
                 ) : (
                     !hidePanelMessage && (
                         <div className="omni-panel-shell">
+                            <ImageSettingsToggle />
                             <PanelMessage />
                         </div>
                     )
