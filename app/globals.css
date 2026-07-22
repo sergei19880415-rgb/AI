@@ -125,3 +125,160 @@
         @apply text-gray-0;
     }
 }
+
+/* Chat workspace polish. The backup branch keeps the previous look for a quick rollback. */
+.omni-layout-content .relative.grid > div {
+    border-radius: 0.75rem !important;
+    box-shadow: none !important;
+}
+
+/* Keep one quiet empty-state message instead of repeating prompt cards. */
+.omni-layout-content .border-dashed > div:nth-child(3) {
+    display: none !important;
+}
+
+.omni-layout-content .border-dashed {
+    border-style: solid !important;
+    border-color: #eceff3 !important;
+    background: rgba(246, 248, 250, 0.55) !important;
+}
+
+.omni-layout-content
+    .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    width: min(31rem, calc(100% - 2rem));
+    padding: 1rem 1.5rem 2.65rem;
+    transform: translate(-50%, -50%);
+    border: 1px solid #eceff3;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 0.5rem 2rem rgba(17, 12, 46, 0.06);
+    color: #0d0d12;
+    content: "Сравните ответы лучших нейросетей";
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+.omni-layout-content
+    .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::after {
+    position: absolute;
+    top: calc(50% + 0.8rem);
+    left: 50%;
+    z-index: 3;
+    width: min(27rem, calc(100% - 4rem));
+    transform: translateX(-50%);
+    color: #666d80;
+    content: "Задайте один вопрос — выбранные модели ответят одновременно.";
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+/* Lighter and more compact input panel. */
+.omni-panel-shell > div:first-child {
+    padding: 0 0.75rem 0.75rem;
+}
+
+.omni-panel-shell > div:first-child > div {
+    align-items: flex-end !important;
+    gap: 0.5rem !important;
+    padding: 0.625rem !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 -0.5rem 2rem rgba(17, 12, 46, 0.08) !important;
+}
+
+.omni-panel-shell > div:first-child > div > div:first-child {
+    align-self: flex-end !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+.omni-panel-shell > div:first-child > div > div:nth-child(2) {
+    padding: 0.375rem 0.75rem !important;
+    border-radius: 0.5rem !important;
+    box-shadow: none !important;
+}
+
+.omni-panel-shell textarea {
+    min-height: 2.25rem !important;
+    padding-top: 0.375rem !important;
+    padding-bottom: 0.375rem !important;
+    font-size: 0.9375rem !important;
+}
+
+.omni-panel-shell > div:first-child > div > div:nth-child(3) button {
+    min-height: 2.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-left: 0.75rem !important;
+    border-radius: 0.5rem !important;
+    box-shadow: none !important;
+    font-size: 0.8125rem !important;
+}
+
+/* Two windows remain stacked until the layout is wide enough for two readable columns. */
+@media (max-width: 1258px) {
+    .omni-layout-content:has(
+            > .flex > .relative.grid > div:nth-child(2):last-child
+        ) {
+        overflow-y: auto !important;
+    }
+
+    .omni-layout-content
+        > .flex
+        > .relative.grid:has(> div:nth-child(2):last-child) {
+        height: auto !important;
+        grid-auto-rows: minmax(28rem, 65svh) !important;
+    }
+}
+
+/* Three or four windows use one full-width card per row on phones and tablets. */
+@media (max-width: 1022px) {
+    .omni-layout-content:has(> .flex > .relative.grid > div:nth-child(3)) {
+        overflow-y: auto !important;
+    }
+
+    .omni-layout-content
+        > .flex
+        > .relative.grid:has(> div:nth-child(3)) {
+        height: auto !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-auto-rows: minmax(28rem, 65svh) !important;
+    }
+}
+
+@media (max-width: 767px) {
+    .omni-panel-shell > div:first-child {
+        padding: 0 0.5rem 0.5rem;
+    }
+
+    .omni-panel-shell > div:first-child > div {
+        flex-direction: row !important;
+        align-items: flex-end !important;
+        padding: 0.5rem !important;
+    }
+
+    .omni-panel-shell > div:first-child > div > div:nth-child(3) button {
+        width: 4.75rem !important;
+        padding-right: 0.5rem !important;
+        padding-left: 0.5rem !important;
+        font-size: 0.75rem !important;
+    }
+
+    .omni-layout-content
+        .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::before {
+        top: 5.5rem;
+        transform: translateX(-50%);
+    }
+
+    .omni-layout-content
+        .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::after {
+        top: 8.85rem;
+    }
+}
