@@ -15,6 +15,47 @@ const findImageSettingsGrid = (shell: HTMLElement) => {
     );
 };
 
+const greatestCommonDivisor = (a: number, b: number): number => {
+    let left = Math.abs(a);
+    let right = Math.abs(b);
+
+    while (right) {
+        const next = left % right;
+        left = right;
+        right = next;
+    }
+
+    return left || 1;
+};
+
+const formatSizeLabel = (value: string) => {
+    const match = value.match(/(\d+)\s*[x×]\s*(\d+)/i);
+    if (!match) return value || "Авто";
+
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    const divisor = greatestCommonDivisor(width, height);
+    const ratio = `${width / divisor}:${height / divisor}`;
+
+    if (width === height) return `Квадрат ${ratio}`;
+    return width > height ? `Альбом ${ratio}` : `Портрет ${ratio}`;
+};
+
+const formatQualityLabel = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized.includes("high") || normalized.includes("hd")) {
+        return "Высокое";
+    }
+    if (normalized.includes("medium") || normalized.includes("standard")) {
+        return "Стандарт";
+    }
+    if (normalized.includes("low")) return "Экономно";
+    if (normalized.includes("auto")) return "Авто";
+
+    return value || "Авто";
+};
+
 const readSettingsSummary = (grid: HTMLElement) => {
     const qualityText = (grid.children[0]?.textContent || "")
         .replace("Качество", "")
@@ -23,14 +64,17 @@ const readSettingsSummary = (grid: HTMLElement) => {
         .replace("Размер", "")
         .trim();
 
-    return [qualityText, sizeText].filter(Boolean).join(" · ");
+    return {
+        quality: formatQualityLabel(qualityText),
+        format: formatSizeLabel(sizeText),
+    };
 };
 
 const ImageSettingsToggle = () => {
     const [host, setHost] = useState<HTMLElement | null>(null);
     const [grid, setGrid] = useState<HTMLElement | null>(null);
     const [open, setOpen] = useState(false);
-    const [summary, setSummary] = useState("");
+    const [summary, setSummary] = useState({ quality: "Авто", format: "Авто" });
 
     useEffect(() => {
         const shell = document.querySelector<HTMLElement>(".omni-panel-shell");
@@ -49,7 +93,7 @@ const ImageSettingsToggle = () => {
                 setHost(null);
                 setGrid(null);
                 setOpen(false);
-                setSummary("");
+                setSummary({ quality: "Авто", format: "Авто" });
                 return;
             }
 
@@ -95,9 +139,16 @@ const ImageSettingsToggle = () => {
             className="omni-image-settings-toggle"
             onClick={() => setOpen((current) => !current)}
             aria-expanded={open}
+            aria-label={`Параметры изображения: ${summary.format}, качество ${summary.quality}`}
         >
-            <span className="truncate">
-                Параметры изображения{summary ? ` · ${summary}` : ""}
+            <span className="omni-image-settings-value">
+                <span className="omni-image-settings-prefix">Формат: </span>
+                {summary.format}
+            </span>
+            <span className="omni-image-settings-divider" aria-hidden="true" />
+            <span className="omni-image-settings-value">
+                <span className="omni-image-settings-prefix">Качество: </span>
+                {summary.quality}
             </span>
             <Icon
                 className={`shrink-0 fill-gray-500 transition-transform ${
