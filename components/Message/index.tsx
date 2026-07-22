@@ -94,7 +94,7 @@ const Message = ({
     );
 
     return (
-        <div>
+        <div data-chat-message="user">
             {image && (
                 <div className="mb-2 flex flex-wrap justify-end gap-2">
                     <div className="w-50">
