@@ -2,6 +2,7 @@ import Image from "@/components/Image";
 import Icon from "@/components/Icon";
 import GenerateImage from "./GenerateImage";
 import GenerateVideo from "./GenerateVideo";
+import MarkdownContent from "./MarkdownContent";
 
 type Props = {
     image?: string;
@@ -13,168 +14,45 @@ type Props = {
     children: React.ReactNode;
 };
 
-type MarkdownInlineNode = string | { type: "strong"; text: string };
-
-type MarkdownBlock =
-    | { type: "heading"; text: string }
-    | { type: "paragraph"; lines: string[] }
-    | { type: "list"; items: string[] };
-
-const markdownHeadingPattern = /^#{1,4}\s+(.+)$/;
-
-const parseMarkdownHeading = (line: string) => {
-    const match = markdownHeadingPattern.exec(line);
-
-    return match ? match[1].trim() : null;
+type ExtractedGeneratedImage = {
+    image: string;
+    remainingContent: string;
 };
 
-const parseInlineMarkdown = (text: string): MarkdownInlineNode[] => {
-    const nodes: MarkdownInlineNode[] = [];
-    const boldPattern = /\*\*([^*]+?)\*\*/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
+const generatedImageHtmlPattern =
+    /<img\b[^>]*\bsrc\s*=\s*(["'])(data:image\/(?:png|jpe?g|webp);base64,[^"']+)\1[^>]*>/i;
+const directGeneratedImagePattern =
+    /^(data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+/=\s]+)$/i;
 
-    while ((match = boldPattern.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-            nodes.push(text.slice(lastIndex, match.index));
-        }
+const normalizeDataImageUrl = (value: string) => {
+    const commaIndex = value.indexOf(",");
+    if (commaIndex === -1) return value.trim();
 
-        nodes.push({ type: "strong", text: match[1] });
-        lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex < text.length) {
-        nodes.push(text.slice(lastIndex));
-    }
-
-    return nodes.length ? nodes : [text];
+    const header = value.slice(0, commaIndex + 1);
+    const payload = value.slice(commaIndex + 1).replace(/\s+/g, "");
+    return `${header}${payload}`;
 };
 
-const renderInlineMarkdown = (text: string, keyPrefix: string) =>
-    parseInlineMarkdown(text).map((node, index) => {
-        if (typeof node === "string") {
-            return <span key={`${keyPrefix}-text-${index}`}>{node}</span>;
-        }
+const extractGeneratedImage = (content: string): ExtractedGeneratedImage | null => {
+    const htmlMatch = generatedImageHtmlPattern.exec(content);
 
-        return (
-            <strong className="font-bold" key={`${keyPrefix}-strong-${index}`}>
-                {node.text}
-            </strong>
-        );
-    });
-
-const parseMarkdownBlocks = (content: string): MarkdownBlock[] => {
-    const blocks: MarkdownBlock[] = [];
-    const lines = content.replace(/\r\n?/g, "\n").split("\n");
-    let index = 0;
-
-    while (index < lines.length) {
-        const line = lines[index];
-        const trimmedLine = line.trim();
-
-        if (!trimmedLine) {
-            index += 1;
-            continue;
-        }
-
-        const headingText = parseMarkdownHeading(trimmedLine);
-
-        if (headingText) {
-            blocks.push({ type: "heading", text: headingText });
-            index += 1;
-            continue;
-        }
-
-        if (trimmedLine.startsWith("- ")) {
-            const items: string[] = [];
-
-            while (index < lines.length && lines[index].trim().startsWith("- ")) {
-                items.push(lines[index].trim().slice(2).trim());
-                index += 1;
-            }
-
-            blocks.push({ type: "list", items });
-            continue;
-        }
-
-        const paragraphLines: string[] = [];
-
-        while (index < lines.length) {
-            const currentLine = lines[index];
-            const currentTrimmedLine = currentLine.trim();
-
-            if (
-                !currentTrimmedLine ||
-                parseMarkdownHeading(currentTrimmedLine) ||
-                currentTrimmedLine.startsWith("- ")
-            ) {
-                break;
-            }
-
-            paragraphLines.push(currentTrimmedLine);
-            index += 1;
-        }
-
-        blocks.push({ type: "paragraph", lines: paragraphLines });
+    if (htmlMatch?.[2]) {
+        return {
+            image: normalizeDataImageUrl(htmlMatch[2]),
+            remainingContent: content.replace(htmlMatch[0], "").trim(),
+        };
     }
 
-    return blocks;
-};
+    const directMatch = directGeneratedImagePattern.exec(content.trim());
 
-const AssistantMarkdown = ({ content }: { content: string }) => {
-    const blocks = parseMarkdownBlocks(content);
+    if (directMatch?.[1]) {
+        return {
+            image: normalizeDataImageUrl(directMatch[1]),
+            remainingContent: "",
+        };
+    }
 
-    return (
-        <div className="space-y-2 leading-[1.65]">
-            {blocks.map((block, blockIndex) => {
-                if (block.type === "heading") {
-                    return (
-                        <h3
-                            className="mt-3 mb-1.5 text-[15px] font-bold leading-[1.45] text-slate-800 first:mt-0"
-                            key={`heading-${blockIndex}`}
-                        >
-                            {renderInlineMarkdown(
-                                block.text,
-                                `heading-${blockIndex}`
-                            )}
-                        </h3>
-                    );
-                }
-
-                if (block.type === "list") {
-                    return (
-                        <ul
-                            className="mb-2 list-disc space-y-1 pl-5 last:mb-0"
-                            key={`list-${blockIndex}`}
-                        >
-                            {block.items.map((item, itemIndex) => (
-                                <li key={`list-${blockIndex}-item-${itemIndex}`}>
-                                    {renderInlineMarkdown(
-                                        item,
-                                        `list-${blockIndex}-item-${itemIndex}`
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
-                    );
-                }
-
-                return (
-                    <p className="mb-2 last:mb-0" key={`paragraph-${blockIndex}`}>
-                        {block.lines.map((line, lineIndex) => (
-                            <span key={`paragraph-${blockIndex}-line-${lineIndex}`}>
-                                {lineIndex > 0 && <br />}
-                                {renderInlineMarkdown(
-                                    line,
-                                    `paragraph-${blockIndex}-line-${lineIndex}`
-                                )}
-                            </span>
-                        ))}
-                    </p>
-                );
-            })}
-        </div>
-    );
+    return null;
 };
 
 const getModelLogoSrc = (
@@ -251,7 +129,12 @@ const Answer = ({
               ? children.join(" ")
               : "";
 
-    const trimmedContentText = contentText.trim();
+    const extractedGeneratedImage = extractGeneratedImage(contentText);
+    const renderedImage = image || extractedGeneratedImage?.image;
+    const renderedContentText = extractedGeneratedImage
+        ? extractedGeneratedImage.remainingContent
+        : contentText;
+    const trimmedContentText = renderedContentText.trim();
 
     const handleCopy = async () => {
         if (!trimmedContentText) return;
@@ -259,7 +142,7 @@ const Answer = ({
         try {
             await navigator.clipboard.writeText(trimmedContentText);
         } catch {
-            // ignore
+            // Clipboard can be unavailable in restricted browser contexts.
         }
     };
 
@@ -279,18 +162,19 @@ const Answer = ({
     const actions = [
         {
             icon: "copy",
+            title: "Копировать",
             onClick: handleCopy,
         },
         {
             icon: "refresh",
+            title: "Повторить",
             onClick: handleRefresh,
         },
     ];
 
     const showModelLabel =
         !!modelLabel && !trimmedContentText.startsWith("Печатает...");
-
-    const hideActions = !!image || !!video;
+    const hideActions = !!renderedImage || !!video || !trimmedContentText;
 
     return (
         <div>
@@ -305,18 +189,14 @@ const Answer = ({
                     />
                 </div>
 
-                <div className="min-w-0">
-                    {children && (
-                        <div className="content rounded-3xl rounded-tl-none bg-gray-50 p-3 text-[15px] leading-6 text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
-                            {typeof children === "string" ? (
-                                <AssistantMarkdown content={children} />
-                            ) : (
-                                children
-                            )}
+                <div className="min-w-0 max-w-full flex-1">
+                    {trimmedContentText && (
+                        <div className="content min-w-0 rounded-3xl rounded-tl-none bg-gray-50 p-3 text-slate-700 max-md:rounded-2xl max-md:rounded-tl-none">
+                            <MarkdownContent content={trimmedContentText} />
                         </div>
                     )}
 
-                    {image && <GenerateImage image={image} />}
+                    {renderedImage && <GenerateImage image={renderedImage} />}
                     {video && <GenerateVideo video={video} />}
 
                     {showModelLabel && (
@@ -329,9 +209,12 @@ const Answer = ({
                         <div className="mt-2 flex gap-2">
                             {actions.map((action) => (
                                 <button
-                                    className="group text-0"
+                                    type="button"
+                                    className="group flex size-7 items-center justify-center rounded-md transition hover:bg-gray-100"
                                     key={action.icon}
                                     onClick={action.onClick}
+                                    title={action.title}
+                                    aria-label={action.title}
                                 >
                                     <Icon
                                         className="fill-gray-500 transition-colors group-hover:fill-gray-900"
