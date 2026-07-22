@@ -1,18 +1,18 @@
 /* Focused interface fixes. Kept separate so the changes are easy to review or remove. */
 
-/* Empty state: explain the full comparison flow without implying a one-question limit. */
+/* Empty state: keep the explanation short and connected. */
 .omni-layout-content
     .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::before {
-    padding-bottom: 4.9rem;
-    content: "Сравните ответы нескольких нейросетей";
+    padding-bottom: 3.9rem;
+    content: "Сравните ответы нескольких моделей";
 }
 
 .omni-layout-content
     .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::after {
-    top: calc(50% + 0.45rem);
+    top: calc(50% + 0.65rem);
     width: min(29rem, calc(100% - 4rem));
-    content: "Задайте вопрос — выбранные модели ответят одновременно.\A Нажмите «Общий ответ», чтобы модель-арбитр собрала их в один краткий ответ.";
-    white-space: pre-line;
+    content: "Задайте вопрос — модели ответят одновременно. «Общий ответ» объединит результаты.";
+    white-space: normal;
 }
 
 /* Mobile header: the selector row takes its own space and scrolls horizontally. */
@@ -70,6 +70,65 @@
     padding-top: 0.25rem !important;
     padding-bottom: 0.25rem !important;
     line-height: 1.5rem !important;
+}
+
+/* Image settings: compact summary chips, with the existing selectors in a popover. */
+.omni-image-settings-toggle-host {
+    position: relative;
+    display: flex;
+    width: 100%;
+    margin-bottom: 0.25rem;
+}
+
+.omni-image-settings-toggle {
+    display: inline-flex !important;
+    width: auto !important;
+    max-width: 100%;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    border: 1px solid #dfe1e7;
+    border-radius: 0.625rem;
+    background: #ffffff;
+    padding: 0.4375rem 0.625rem;
+    color: #36394a;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1rem;
+    box-shadow: none;
+}
+
+.omni-image-settings-toggle:hover {
+    border-color: #c1c7d0;
+    background: #f6f8fa;
+}
+
+.omni-image-settings-value {
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.omni-image-settings-divider {
+    width: 1px;
+    height: 1rem;
+    flex: 0 0 auto;
+    background: #dfe1e7;
+}
+
+.omni-image-settings-grid.is-open {
+    position: absolute !important;
+    left: 0;
+    bottom: calc(100% + 0.5rem);
+    z-index: 50;
+    display: grid !important;
+    width: min(30rem, calc(100vw - 2rem));
+    margin: 0 !important;
+    padding: 0.75rem;
+    border: 1px solid #dfe1e7;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    box-shadow: 0 0.75rem 2rem rgba(17, 12, 46, 0.14);
 }
 
 /* Rename the visible summary action without touching its request logic. */
@@ -146,16 +205,25 @@
         width: 7.75rem !important;
     }
 
+    .omni-image-settings-prefix {
+        display: none;
+    }
+
+    .omni-image-settings-grid.is-open {
+        width: calc(100vw - 1rem);
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
     .omni-layout-content
         .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::before {
         top: 6rem;
-        padding: 0.9rem 1rem 5.7rem;
+        padding: 0.9rem 1rem 4.4rem;
         transform: translateX(-50%);
     }
 
     .omni-layout-content
         .relative.grid:has(> div:nth-child(2)):not(:has([data-chat-message]))::after {
-        top: 9.15rem;
+        top: 8.75rem;
         width: min(20rem, calc(100% - 3rem));
     }
 }
