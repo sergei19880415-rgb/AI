@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
+import "./omni-fixes.css";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
