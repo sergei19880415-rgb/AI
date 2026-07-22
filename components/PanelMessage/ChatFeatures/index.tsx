@@ -49,14 +49,17 @@ const ChatFeatures = ({
     return (
         <Menu>
             <MenuButton
-                className="group flex size-10 items-center justify-center rounded-lg border border-gray-100 bg-white transition-colors hover:bg-gray-25"
-                aria-label="Открыть дополнительные действия"
-                title="Дополнительные действия"
+                className="group flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-100 bg-white px-3 transition-colors hover:bg-gray-25 max-md:size-10 max-md:px-0"
+                aria-label="Добавить файл или выбрать режим"
+                title="Добавить файл или выбрать режим"
             >
                 <Icon
                     className="fill-gray-500 transition-colors group-hover:fill-gray-900"
                     name="plus"
                 />
+                <span className="text-[13px] font-medium text-gray-700 max-md:hidden">
+                    Добавить
+                </span>
             </MenuButton>
 
             <MenuItems
