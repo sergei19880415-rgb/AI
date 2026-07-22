@@ -1,0 +1,64 @@
+name: Backup n8n workflows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Export all n8n workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download workflow list
+        env:
+          N8N_BASE_URL: ${{ secrets.N8N_BASE_URL }}
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+        run: |
+          set -euo pipefail
+          base_url="${N8N_BASE_URL%/}"
+          mkdir -p n8n-backup/workflows
+
+          curl --fail --silent --show-error \
+            --header "X-N8N-API-KEY: ${N8N_API_KEY}" \
+            "${base_url}/api/v1/workflows?limit=250" \
+            --output n8n-backup/workflows-list.json
+
+          workflow_count="$(jq '.data | length' n8n-backup/workflows-list.json)"
+          echo "Found ${workflow_count} workflows"
+
+          if [ "${workflow_count}" -lt 1 ]; then
+            echo "No workflows returned by n8n"
+            exit 1
+          fi
+
+      - name: Download every workflow
+        env:
+          N8N_BASE_URL: ${{ secrets.N8N_BASE_URL }}
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+        run: |
+          set -euo pipefail
+          base_url="${N8N_BASE_URL%/}"
+
+          jq -r '.data[].id' n8n-backup/workflows-list.json | while IFS= read -r workflow_id; do
+            echo "Backing up workflow ${workflow_id}"
+            curl --fail --silent --show-error \
+              --header "X-N8N-API-KEY: ${N8N_API_KEY}" \
+              "${base_url}/api/v1/workflows/${workflow_id}" \
+              --output "n8n-backup/workflows/${workflow_id}.json"
+          done
+
+          jq '[.data[] | {id, name, active, updatedAt}]' \
+            n8n-backup/workflows-list.json \
+            > n8n-backup/manifest.json
+
+      - name: Upload backup archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: n8n-workflows-backup-${{ github.run_number }}
+          path: n8n-backup/
+          if-no-files-found: error
+          retention-days: 30
